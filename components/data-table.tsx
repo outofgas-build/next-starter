@@ -36,18 +36,18 @@ export function DataTable<TData, TValue>({
 
   return (
     <Table>
-      <TableHeader className="text-xs sticky top-0 z-10 bg-background">
+      <TableHeader>
         {table.getHeaderGroups().map((headerGroup) => (
           <TableRow key={headerGroup.id}>
             {headerGroup.headers.map((header) => (
-              <TableHead key={header.id} className={"text-foreground/60"}>
+              <TableHead key={header.id}>
                 {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
               </TableHead>
             ))}
           </TableRow>
         ))}
       </TableHeader>
-      <TableBody className={"font-medium"}>
+      <TableBody>
         {table.getRowModel().rows?.length ? (
           table.getRowModel().rows.map((row) => (
             <TableRow
@@ -56,8 +56,8 @@ export function DataTable<TData, TValue>({
               onClick={() => onRowClick?.(row.original)}
               className={onRowClick ? "cursor-pointer" : ""}
             >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell key={cell.id} className={"text-xs"}>
+                {row.getVisibleCells().map((cell) => (
+                <TableCell key={cell.id}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}

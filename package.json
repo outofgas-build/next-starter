@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port 6363",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
@@ -12,6 +12,7 @@
   "dependencies": {
     "@apollo/client": "^4.1.6",
     "@graphql-codegen/typescript-react-query": "^7.0.0",
+    "@outofgas/utils": "^0.2.13",
     "@privy-io/react-auth": "^3.14.1",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",

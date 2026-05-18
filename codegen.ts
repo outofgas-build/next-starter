@@ -2,7 +2,8 @@ import type { CodegenConfig } from "@graphql-codegen/cli";
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema: "https://api.goldsky.com/api/public/project_cl6mb8i9h0003e201j6li0diw/subgraphs/pnl-subgraph/0.0.14/gn",
+  schema:
+    "https://api.goldsky.com/api/public/project_cma5n10r0vrqg01tv8ajb6gsc/subgraphs/venzo-subgraph/0.0.6/gn",
   documents: ["graphql/queries/**/*.ts"],
   ignoreNoDocuments: true,
   generates: {
