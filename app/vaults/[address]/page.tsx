@@ -107,7 +107,7 @@ function InfoPairs({
     <div>
       {items.map((item) => (
         <div
-          className="grid min-w-0 gap-2 border-b py-3 first:pt-0 last:border-b-0 last:pb-0 sm:grid-cols-[160px_minmax(0,1fr)] sm:items-start"
+          className="grid min-w-0 gap-2 border-b py-3 first:pt-0 last:border-b-0 last:pb-0 sm:grid-cols-[190px_minmax(0,1fr)] sm:items-start"
           key={item.label}
         >
           <div className="text-sm text-muted-foreground">{item.label}</div>
@@ -517,7 +517,7 @@ export default function VaultDetailPage() {
                               value: latestDepositEpoch ? `#${latestDepositEpoch.epochId}` : "--",
                               detail: latestDepositEpoch
                                 ? `Settled ${formatDate(latestDepositEpoch.blockTimestamp)}`
-                                : "No settled deposit epochs indexed yet"
+                                : undefined
                             },
                             {
                               label: "Settled Assets",
@@ -572,7 +572,7 @@ export default function VaultDetailPage() {
                             value: latestRedeemEpoch ? `#${latestRedeemEpoch.epochId}` : "--",
                             detail: latestRedeemEpoch
                               ? `Settled ${formatDate(latestRedeemEpoch.blockTimestamp)}`
-                              : "No settled redeem epochs indexed yet"
+                              : undefined
                           },
                           {
                             label: "Settled Assets",
@@ -612,6 +612,261 @@ export default function VaultDetailPage() {
                       </div>
                     </div>
                   </section>
+
+                  <Card>
+                    <CardHeader className="border-b bg-muted/20">
+                      <CardTitle>Activity</CardTitle>
+                    </CardHeader>
+                    <CardContent className="overflow-hidden">
+                      <Tabs defaultValue="settlements">
+                        <TabsList variant="line" className="mb-5 max-w-full justify-start overflow-x-auto overflow-y-hidden border-b pb-0">
+                          <TabsTrigger value="settlements">Settlements</TabsTrigger>
+                          <TabsTrigger value="requests">Requests</TabsTrigger>
+                          <TabsTrigger value="snapshots">Snapshots</TabsTrigger>
+                        </TabsList>
+
+                        <TabsContent
+                          value="settlements"
+                          className={cn("grid gap-6", supportsAsyncDeposits && "lg:grid-cols-2")}
+                        >
+                          {supportsAsyncDeposits ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Deposit Epoch</TableHead>
+                                  <TableHead>Assets</TableHead>
+                                  <TableHead>Shares</TableHead>
+                                  <TableHead>Price</TableHead>
+                                  <TableHead>Report</TableHead>
+                                  <TableHead>Settled</TableHead>
+                                  <TableHead>Tx</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {data.depositEpoches.length ? (
+                                  data.depositEpoches.map((epoch) => (
+                                    <TableRow key={epoch.id}>
+                                      <TableCell>#{epoch.epochId}</TableCell>
+                                      <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
+                                      <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
+                                      <TableCell>
+                                        {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
+                                      </TableCell>
+                                      <TableCell>#{epoch.reportId}</TableCell>
+                                      <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
+                                      <TableCell>
+                                        <ExplorerChip entity="tx" value={epoch.transactionHash} />
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={7}>No settled deposit epochs.</TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          ) : null}
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Redeem Epoch</TableHead>
+                                <TableHead>Shares</TableHead>
+                                <TableHead>Assets</TableHead>
+                                <TableHead>Price</TableHead>
+                                <TableHead>Report</TableHead>
+                                <TableHead>Settled</TableHead>
+                                <TableHead>Tx</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {data.redeemEpoches.length ? (
+                                data.redeemEpoches.map((epoch) => (
+                                  <TableRow key={epoch.id}>
+                                    <TableCell>#{epoch.epochId}</TableCell>
+                                    <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
+                                    <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
+                                    <TableCell>
+                                      {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
+                                    </TableCell>
+                                    <TableCell>#{epoch.reportId}</TableCell>
+                                    <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
+                                    <TableCell>
+                                      <ExplorerChip entity="tx" value={epoch.transactionHash} />
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={7}>No settled redeem epochs.</TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TabsContent>
+
+                        <TabsContent
+                          value="requests"
+                          className={cn("grid gap-6", supportsAsyncDeposits && "lg:grid-cols-2")}
+                        >
+                          {supportsAsyncDeposits ? (
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Deposit</TableHead>
+                                  <TableHead>Controller</TableHead>
+                                  <TableHead>Owner</TableHead>
+                                  <TableHead>Sender</TableHead>
+                                  <TableHead>Assets</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Updated</TableHead>
+                                  <TableHead>Tx</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {data.depositRequests.length ? (
+                                  data.depositRequests.map((request) => (
+                                    <TableRow key={request.id}>
+                                      <TableCell>#{request.requestId}</TableCell>
+                                      <TableCell>
+                                        <ExplorerChip value={request.controller} />
+                                      </TableCell>
+                                      <TableCell>
+                                        <ExplorerChip value={request.owner} />
+                                      </TableCell>
+                                      <TableCell>
+                                        <ExplorerChip value={request.sender} />
+                                      </TableCell>
+                                      <TableCell>{formatTokenAmount(request.assets, assetDecimals)}</TableCell>
+                                      <TableCell>
+                                        <Badge variant={request.canceled ? "secondary" : "default"}>
+                                          {request.canceled ? "Canceled" : "Pending"}
+                                        </Badge>
+                                      </TableCell>
+                                      <TableCell>
+                                        <div>{formatDate(request.updatedAtTimestamp)}</div>
+                                        <div className="text-xs text-muted-foreground">
+                                          Created {formatDate(request.createdAtTimestamp)}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <ExplorerChip entity="tx" value={request.createdAtTransaction} />
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                ) : (
+                                  <TableRow>
+                                    <TableCell colSpan={8}>No recent deposit requests.</TableCell>
+                                  </TableRow>
+                                )}
+                              </TableBody>
+                            </Table>
+                          ) : null}
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Redeem</TableHead>
+                                <TableHead>Controller</TableHead>
+                                <TableHead>Owner</TableHead>
+                                <TableHead>Sender</TableHead>
+                                <TableHead>Shares</TableHead>
+                                <TableHead>Status</TableHead>
+                                <TableHead>Updated</TableHead>
+                                <TableHead>Tx</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {data.redeemRequests.length ? (
+                                data.redeemRequests.map((request) => (
+                                  <TableRow key={request.id}>
+                                    <TableCell>#{request.requestId}</TableCell>
+                                    <TableCell>
+                                      <ExplorerChip value={request.controller} />
+                                    </TableCell>
+                                    <TableCell>
+                                      <ExplorerChip value={request.owner} />
+                                    </TableCell>
+                                    <TableCell>
+                                      <ExplorerChip value={request.sender} />
+                                    </TableCell>
+                                    <TableCell>{formatTokenAmount(request.shares, 18)}</TableCell>
+                                    <TableCell>
+                                      <Badge variant={request.canceled ? "secondary" : "default"}>
+                                        {request.canceled ? "Canceled" : "Pending"}
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div>{formatDate(request.updatedAtTimestamp)}</div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Created {formatDate(request.createdAtTimestamp)}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <ExplorerChip entity="tx" value={request.createdAtTransaction} />
+                                    </TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={8}>No recent redeem requests.</TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TabsContent>
+
+                        <TabsContent value="snapshots">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Source</TableHead>
+                                <TableHead>TVL</TableHead>
+                                <TableHead>Total Assets</TableHead>
+                                <TableHead>Total Supply</TableHead>
+                                <TableHead>NAV</TableHead>
+                                <TableHead>Share Price</TableHead>
+                                <TableHead>Report</TableHead>
+                                <TableHead>Net Flow</TableHead>
+                                <TableHead>Yield</TableHead>
+                                <TableHead>Tx</TableHead>
+                                <TableHead>Time</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {vault.snapshots.length ? (
+                                vault.snapshots.map((snapshot) => (
+                                  <TableRow key={snapshot.id}>
+                                    <TableCell>{snapshot.source}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.tvl, assetDecimals)}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.totalAssets, assetDecimals)}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.totalSupply, 18)}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.navAssets, assetDecimals)}</TableCell>
+                                    <TableCell>
+                                      {formatSharePrice(snapshot.sharePrice, assetDecimals, {
+                                        totalAssets: snapshot.totalAssets,
+                                        totalSupply: snapshot.totalSupply
+                                      })}
+                                    </TableCell>
+                                    <TableCell>{snapshot.reportId ? `#${snapshot.reportId}` : "--"}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.netFlowAssets, assetDecimals)}</TableCell>
+                                    <TableCell>{formatTokenAmount(snapshot.yieldEarnedAssets, assetDecimals)}</TableCell>
+                                    <TableCell>
+                                      <ExplorerChip entity="tx" value={snapshot.transactionHash} />
+                                    </TableCell>
+                                    <TableCell>{formatDate(snapshot.blockTimestamp)}</TableCell>
+                                  </TableRow>
+                                ))
+                              ) : (
+                                <TableRow>
+                                  <TableCell colSpan={11}>No snapshots indexed yet.</TableCell>
+                                </TableRow>
+                              )}
+                            </TableBody>
+                          </Table>
+                        </TabsContent>
+                      </Tabs>
+                    </CardContent>
+                  </Card>
                 </div>
               </TabsContent>
 
@@ -1119,251 +1374,6 @@ export default function VaultDetailPage() {
               </TabsContent>
             </Tabs>
           </section>
-
-          <Card>
-            <CardHeader className="border-b bg-muted/20">
-              <CardTitle>Activity</CardTitle>
-            </CardHeader>
-            <CardContent className="overflow-hidden">
-              <Tabs defaultValue="settlements">
-                <TabsList variant="line" className="mb-5 max-w-full justify-start overflow-x-auto border-b pb-0">
-                  <TabsTrigger value="settlements">Settlements</TabsTrigger>
-                  <TabsTrigger value="requests">Requests</TabsTrigger>
-                  <TabsTrigger value="snapshots">Snapshots</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="settlements" className="grid gap-6 lg:grid-cols-2">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Deposit Epoch</TableHead>
-                        <TableHead>Assets</TableHead>
-                        <TableHead>Shares</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Report</TableHead>
-                        <TableHead>Settled</TableHead>
-                        <TableHead>Tx</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.depositEpoches.length ? (
-                        data.depositEpoches.map((epoch) => (
-                          <TableRow key={epoch.id}>
-                            <TableCell>#{epoch.epochId}</TableCell>
-                            <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
-                            <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
-                            <TableCell>
-                              {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
-                            </TableCell>
-                            <TableCell>#{epoch.reportId}</TableCell>
-                            <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
-                            <TableCell>
-                              <ExplorerChip entity="tx" value={epoch.transactionHash} />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7}>No settled deposit epochs.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Redeem Epoch</TableHead>
-                        <TableHead>Shares</TableHead>
-                        <TableHead>Assets</TableHead>
-                        <TableHead>Price</TableHead>
-                        <TableHead>Report</TableHead>
-                        <TableHead>Settled</TableHead>
-                        <TableHead>Tx</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.redeemEpoches.length ? (
-                        data.redeemEpoches.map((epoch) => (
-                          <TableRow key={epoch.id}>
-                            <TableCell>#{epoch.epochId}</TableCell>
-                            <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
-                            <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
-                            <TableCell>
-                              {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
-                            </TableCell>
-                            <TableCell>#{epoch.reportId}</TableCell>
-                            <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
-                            <TableCell>
-                              <ExplorerChip entity="tx" value={epoch.transactionHash} />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7}>No settled redeem epochs.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-
-                <TabsContent value="requests" className="grid gap-6 lg:grid-cols-2">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Deposit</TableHead>
-                        <TableHead>Controller</TableHead>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>Sender</TableHead>
-                        <TableHead>Assets</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Updated</TableHead>
-                        <TableHead>Tx</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.depositRequests.length ? (
-                        data.depositRequests.map((request) => (
-                          <TableRow key={request.id}>
-                            <TableCell>#{request.requestId}</TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.controller} />
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.owner} />
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.sender} />
-                            </TableCell>
-                            <TableCell>{formatTokenAmount(request.assets, assetDecimals)}</TableCell>
-                            <TableCell>
-                              <Badge variant={request.canceled ? "secondary" : "default"}>
-                                {request.canceled ? "Canceled" : "Pending"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div>{formatDate(request.updatedAtTimestamp)}</div>
-                              <div className="text-xs text-muted-foreground">
-                                Created {formatDate(request.createdAtTimestamp)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip entity="tx" value={request.createdAtTransaction} />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={8}>No recent deposit requests.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Redeem</TableHead>
-                        <TableHead>Controller</TableHead>
-                        <TableHead>Owner</TableHead>
-                        <TableHead>Sender</TableHead>
-                        <TableHead>Shares</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Updated</TableHead>
-                        <TableHead>Tx</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {data.redeemRequests.length ? (
-                        data.redeemRequests.map((request) => (
-                          <TableRow key={request.id}>
-                            <TableCell>#{request.requestId}</TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.controller} />
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.owner} />
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip value={request.sender} />
-                            </TableCell>
-                            <TableCell>{formatTokenAmount(request.shares, 18)}</TableCell>
-                            <TableCell>
-                              <Badge variant={request.canceled ? "secondary" : "default"}>
-                                {request.canceled ? "Canceled" : "Pending"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div>{formatDate(request.updatedAtTimestamp)}</div>
-                              <div className="text-xs text-muted-foreground">
-                                Created {formatDate(request.createdAtTimestamp)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <ExplorerChip entity="tx" value={request.createdAtTransaction} />
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={8}>No recent redeem requests.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-
-                <TabsContent value="snapshots">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Source</TableHead>
-                        <TableHead>TVL</TableHead>
-                        <TableHead>Total Assets</TableHead>
-                        <TableHead>Total Supply</TableHead>
-                        <TableHead>NAV</TableHead>
-                        <TableHead>Share Price</TableHead>
-                        <TableHead>Report</TableHead>
-                        <TableHead>Net Flow</TableHead>
-                        <TableHead>Yield</TableHead>
-                        <TableHead>Tx</TableHead>
-                        <TableHead>Time</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {vault.snapshots.length ? (
-                        vault.snapshots.map((snapshot) => (
-                          <TableRow key={snapshot.id}>
-                            <TableCell>{snapshot.source}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.tvl, assetDecimals)}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.totalAssets, assetDecimals)}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.totalSupply, 18)}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.navAssets, assetDecimals)}</TableCell>
-                            <TableCell>
-                              {formatSharePrice(snapshot.sharePrice, assetDecimals, {
-                                totalAssets: snapshot.totalAssets,
-                                totalSupply: snapshot.totalSupply
-                              })}
-                            </TableCell>
-                            <TableCell>{snapshot.reportId ? `#${snapshot.reportId}` : "--"}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.netFlowAssets, assetDecimals)}</TableCell>
-                            <TableCell>{formatTokenAmount(snapshot.yieldEarnedAssets, assetDecimals)}</TableCell>
-                            <TableCell>
-                              <ExplorerChip entity="tx" value={snapshot.transactionHash} />
-                            </TableCell>
-                            <TableCell>{formatDate(snapshot.blockTimestamp)}</TableCell>
-                          </TableRow>
-                        ))
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={11}>No snapshots indexed yet.</TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
       </section>
     </PageContainer>
   );
