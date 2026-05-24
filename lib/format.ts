@@ -1,5 +1,19 @@
 import { shortenId } from "@outofgas/utils";
 
+function parseDecimalToScaledBigInt(value: string, outputDecimals: number) {
+  const trimmedValue = value.trim();
+  const match = trimmedValue.match(/^(-?)(\d+)(?:\.(\d+))?$/);
+  if (!match) return null;
+
+  const [, sign, wholeText, fractionText = ""] = match;
+  const outputScale = BigInt(10) ** BigInt(outputDecimals);
+  const normalizedFraction = fractionText.padEnd(outputDecimals, "0").slice(0, outputDecimals);
+  const fraction = normalizedFraction ? BigInt(normalizedFraction) : BigInt(0);
+  const scaledValue = BigInt(wholeText) * outputScale + fraction;
+
+  return sign ? -scaledValue : scaledValue;
+}
+
 export function formatAddress(address?: string | null) {
   return shortenId(address, 6, 4) || "--";
 }
@@ -69,9 +83,14 @@ export function sumTokenAmounts(
   const total = values.reduce((sum, item) => {
     if (item.value === undefined || item.value === null) return sum;
 
+    const valueText = String(item.value);
+    if (valueText.includes(".")) {
+      return sum + (parseDecimalToScaledBigInt(valueText, outputDecimals) ?? BigInt(0));
+    }
+
     const itemDecimals = item.decimals ?? 18;
     const itemScale = BigInt(10) ** BigInt(itemDecimals);
-    return sum + (BigInt(String(item.value)) * outputScale) / itemScale;
+    return sum + (BigInt(valueText) * outputScale) / itemScale;
   }, BigInt(0));
 
   return total.toString();

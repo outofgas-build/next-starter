@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, Gauge, RefreshCw, Vault } from "lucide-react";
+import { Database, Gauge, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -94,15 +94,19 @@ export function AppSidebar() {
                   <SidebarMenuItem key={vault.id}>
                     <SidebarMenuButton
                       asChild
-                      className="h-11 rounded-md px-2.5 text-sidebar-foreground/80 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
+                      className="h-14 items-start rounded-md px-2.5 py-2 text-sidebar-foreground/80 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
                       isActive={pathname === `/vaults/${vault.address}`}
                       tooltip={vault.name}
                     >
                       <Link href={`/vaults/${vault.address}`}>
-                        <Vault className="text-sidebar-foreground/50 group-data-[active=true]/menu-button:text-sidebar-accent-foreground" />
-                        <span className="min-w-0 flex-1 truncate font-medium">{vault.name}</span>
-                        <span className="ml-auto max-w-14 shrink-0 truncate rounded-sm bg-background/70 px-1.5 py-0.5 text-[11px] font-semibold leading-4 text-sidebar-foreground/60 shadow-[inset_0_0_0_1px_var(--sidebar-border)] group-data-[active=true]/menu-button:text-sidebar-accent-foreground">
-                          {vault.symbol}
+                        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                          <span className="truncate font-medium leading-5">{vault.name}</span>
+                          <span className="flex min-w-0 items-center gap-1.5 text-[11px] font-medium leading-4 text-sidebar-foreground/55 group-data-[active=true]/menu-button:text-sidebar-accent-foreground/75">
+                            <span className="shrink-0 rounded-sm bg-background/70 px-1.5 text-[10px] font-semibold leading-4 shadow-[inset_0_0_0_1px_var(--sidebar-border)]">
+                              {vault.symbol}
+                            </span>
+                            <span className="truncate">{formatAddress(vault.address)}</span>
+                          </span>
                         </span>
                       </Link>
                     </SidebarMenuButton>
