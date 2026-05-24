@@ -3,6 +3,6 @@ export const queryKeys = {
     all: ["vaults"] as const,
     list: () => [...queryKeys.vaults.all, "list"] as const,
     detail: (address: string) => [...queryKeys.vaults.all, "detail", address] as const,
-    health: (address: string) => [...queryKeys.vaults.all, "health", address] as const
+    contract: (address: string) => [...queryKeys.vaults.all, "contract", address] as const
   }
 };

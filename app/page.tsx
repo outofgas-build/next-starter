@@ -15,7 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/data-table";
 import { PageContainer } from "@/components/page-container";
 import type { VaultsDashboardQuery } from "@/graphql/generated/graphql";
-import { useVaultsDashboard, useVaultsHealth } from "@/hooks/use-vaults";
+import { useVaultsDashboard, useVaultContracts } from "@/hooks/use-vaults";
 import {
   formatAddress,
   formatDate,
@@ -108,17 +108,17 @@ export default function Home() {
   const { login, authenticated } = usePrivy();
   const { data, isLoading, isFetching, refetch, error } = useVaultsDashboard();
   const vaults = data?.vaults ?? [];
-  const vaultHealthResults = useVaultsHealth(vaults.map((vault) => vault.address));
-  const healthByAddress = new Map(
-    vaultHealthResults.map((result, index) => [vaults[index]?.address.toLowerCase(), result.data])
+  const vaultContractsResults = useVaultContracts(vaults.map((vault) => vault.address));
+  const contractByAddress = new Map(
+    vaultContractsResults.map((result, index) => [vaults[index]?.address.toLowerCase(), result.data])
   );
   const tableVaults: DashboardVaultRow[] = vaults.map((vault) => {
-    const vaultHealth = healthByAddress.get(vault.address.toLowerCase());
+    const vaultContract = contractByAddress.get(vault.address.toLowerCase());
 
     return {
       ...vault,
-      displayTvl: vaultHealth?.totalAssets ?? vault.totalAssets,
-      displayTotalSupply: vaultHealth?.totalSupply ?? vault.totalSupply
+      displayTvl: vaultContract?.totalAssets ?? vault.totalAssets,
+      displayTotalSupply: vaultContract?.totalSupply ?? vault.totalSupply
     };
   });
   const registry = data?.vaultRegistries[0];

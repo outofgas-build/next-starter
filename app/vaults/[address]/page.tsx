@@ -1,9 +1,14 @@
 "use client";
 
-import { Copy, FileText, Send } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Copy, FileText, LockKeyhole, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
+import { useWallets } from "@privy-io/react-auth";
+import { useQueryClient } from "@tanstack/react-query";
 import { FormEvent, ReactNode, useState } from "react";
 import { toast } from "sonner";
+import { createWalletClient, custom, isAddress, type Address } from "viem";
+import { base } from "viem/chains";
+import { AuthGuard } from "@/components/auth-guard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,11 +20,14 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useVaultDetail, useVaultHealth, type VaultHealth } from "@/hooks/use-vaults";
+import { useVaultDetail, useVaultContract, type VaultContract } from "@/hooks/use-vaults";
+import { strategyManagerAbi } from "@/lib/abis";
 import { formatAddress, formatBps, formatDate, formatInteger, formatSharePrice, formatTokenAmount } from "@/lib/format";
+import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 type OperationType = "deposit" | "redeem";
+type StrategyKind = "0" | "1";
 type ExplorerEntity = "address" | "tx";
 
 const blockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
@@ -202,11 +210,11 @@ function AccountingLine({
   );
 }
 
-function getIdleHealthStatus(health?: VaultHealth) {
-  if (!health) return { label: "Live data", variant: "secondary" as const };
+function getIdleReserveStatus(vaultContract?: VaultContract) {
+  if (!vaultContract) return { label: "Live data", variant: "secondary" as const };
 
-  const idle = BigInt(health.vaultIdleBalance);
-  const claimable = BigInt(health.totalClaimableRedeemAssets);
+  const idle = BigInt(vaultContract.vaultIdleBalance);
+  const claimable = BigInt(vaultContract.totalClaimableRedeemAssets);
 
   if (idle < claimable) return { label: "Blocked", variant: "destructive" as const };
   if (idle === claimable) return { label: "Reserved", variant: "secondary" as const };
@@ -216,24 +224,172 @@ function getIdleHealthStatus(health?: VaultHealth) {
 export default function VaultDetailPage() {
   const params = useParams<{ address: string }>();
   const address = params.address;
+  const queryClient = useQueryClient();
+  const { wallets } = useWallets();
   const { data, isLoading, error } = useVaultDetail(address);
-  const { data: vaultHealth } = useVaultHealth(address);
+  const { data: vaultContract } = useVaultContract(address);
   const vault = data?.vault;
-  const [settleType, setSettleType] = useState<OperationType>("deposit");
+  const [strategyAddress, setStrategyAddress] = useState("");
+  const [strategyKind, setStrategyKind] = useState<StrategyKind>("0");
+  const [isAddingStrategy, setIsAddingStrategy] = useState(false);
+  const [allocateStrategyAddress, setAllocateStrategyAddress] = useState("");
+  const [allocateAssets, setAllocateAssets] = useState("");
+  const [isAllocatingStrategy, setIsAllocatingStrategy] = useState(false);
+  const [returnStrategyAddress, setReturnStrategyAddress] = useState("");
+  const [returnAssets, setReturnAssets] = useState("");
+  const [closeType, setCloseType] = useState<OperationType>("redeem");
+  const [closeEpochId, setCloseEpochId] = useState("");
+  const [settleType, setSettleType] = useState<OperationType>("redeem");
   const [settleEpochId, setSettleEpochId] = useState("");
-  const [settleReportId, setSettleReportId] = useState("");
   const [reportNavAssets, setReportNavAssets] = useState("");
-  const [reportAssetsPerShare, setReportAssetsPerShare] = useState("");
   const [reportComputedAt, setReportComputedAt] = useState(() => Math.floor(Date.now() / 1000).toString());
   const [reportMetadataHash, setReportMetadataHash] = useState("");
 
   const assetSymbol = vault?.asset.symbol ?? "asset";
   const assetDecimals = vault?.asset.decimals ?? 18;
   const latestReportId = vault?.valuationOracle.latestReportId ?? "";
-  const idleHealthStatus = getIdleHealthStatus(vaultHealth);
+  const idleReserveStatus = getIdleReserveStatus(vaultContract);
   const supportsAsyncDeposits = vault?.vaultTypeName.toLowerCase().includes("async deposit") ?? false;
   const formatAssetAmount = (value?: string | number | null) =>
     value === undefined || value === null ? "--" : `${formatTokenAmount(value, assetDecimals)} ${assetSymbol}`;
+
+  async function handleAddStrategySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!vault) return;
+
+    const normalizedStrategyAddress = strategyAddress.trim();
+    if (!isAddress(normalizedStrategyAddress)) {
+      toast.error("Enter a valid strategy address.");
+      return;
+    }
+
+    if (!isAddress(vault.strategyManager.address)) {
+      toast.error("Strategy manager address is invalid.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before adding a strategy.");
+      return;
+    }
+
+    try {
+      setIsAddingStrategy(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: base,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.strategyManager.address as Address,
+        abi: strategyManagerAbi,
+        functionName: "addStrategy",
+        args: [normalizedStrategyAddress as Address, Number(strategyKind)]
+      });
+
+      toast.success("Add strategy transaction submitted.", {
+        description: hash
+      });
+      setStrategyAddress("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Add strategy transaction failed.");
+    } finally {
+      setIsAddingStrategy(false);
+    }
+  }
+
+  async function handleAllocateSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!vault) return;
+
+    const normalizedStrategyAddress = allocateStrategyAddress.trim();
+    if (!isAddress(normalizedStrategyAddress)) {
+      toast.error("Enter a valid strategy address.");
+      return;
+    }
+
+    if (!isAddress(vault.strategyManager.address)) {
+      toast.error("Strategy manager address is invalid.");
+      return;
+    }
+
+    let assets: bigint;
+    try {
+      assets = BigInt(allocateAssets.trim());
+    } catch {
+      toast.error("Enter assets as raw integer units.");
+      return;
+    }
+
+    if (assets <= BigInt(0)) {
+      toast.error("Assets must be greater than zero.");
+      return;
+    }
+
+    if (vaultContract && assets > BigInt(vaultContract.availableIdleAssetsForStrategy)) {
+      toast.error("Assets exceed available idle funds.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before transferring funds.");
+      return;
+    }
+
+    try {
+      setIsAllocatingStrategy(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: base,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.strategyManager.address as Address,
+        abi: strategyManagerAbi,
+        functionName: "allocateToStrategy",
+        args: [normalizedStrategyAddress as Address, assets]
+      });
+
+      toast.success("Transfer to strategy transaction submitted.", {
+        description: hash
+      });
+      setAllocateStrategyAddress("");
+      setAllocateAssets("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Transfer to strategy transaction failed.");
+    } finally {
+      setIsAllocatingStrategy(false);
+    }
+  }
+
+  function handleReturnSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    toast.info("returnFromStrategy UI prepared. Connect transaction execution next.");
+  }
+
+  function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const functionName = closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch";
+    toast.info(`${functionName} UI prepared. Connect transaction execution next.`);
+  }
 
   function handleSettleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -277,10 +433,10 @@ export default function VaultDetailPage() {
     );
   }
 
-  const liveTvl = vaultHealth?.totalAssets ?? vault.totalAssets;
-  const liveTotalSupply = vaultHealth?.totalSupply ?? vault.totalSupply;
+  const liveTvl = vaultContract?.totalAssets ?? vault.totalAssets;
+  const liveTotalSupply = vaultContract?.totalSupply ?? vault.totalSupply;
   const vaultTypeName = formatVaultTypeName(vault.vaultTypeName);
-  const feeManager = vaultHealth?.feeManager;
+  const feeManager = vaultContract?.feeManager;
   const feeValues = {
     depositFeeRate: feeManager?.depositFeeRate ?? vault.depositFeeRate,
     redeemFeeRate: feeManager?.redeemFeeRate ?? vault.redeemFeeRate,
@@ -332,11 +488,11 @@ export default function VaultDetailPage() {
           />
           <MetricPanel
             label="Share Price"
-            value={formatSharePrice(vaultHealth?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
+            value={formatSharePrice(vaultContract?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
               totalAssets: liveTvl,
               totalSupply: liveTotalSupply
             })}
-            detail={`Report #${vaultHealth?.cachedActiveNav.reportId ?? vault.valuationOracle.latestReportId}`}
+            detail={`Report #${vaultContract?.cachedActiveNav.reportId ?? vault.valuationOracle.latestReportId}`}
           />
           <MetricPanel
             label="Total Supply"
@@ -378,19 +534,19 @@ export default function VaultDetailPage() {
                   <div className="grid gap-4 xl:grid-cols-3">
                     <AccountingMetric
                       label="Vault Idle Balance"
-                      value={formatAssetAmount(vaultHealth?.vaultIdleBalance)}
+                      value={formatAssetAmount(vaultContract?.vaultIdleBalance)}
                       detail="Raw asset balance"
                     />
                     <AccountingMetric
                       label="Claimable Redeem Reserve"
-                      value={formatAssetAmount(vaultHealth?.totalClaimableRedeemAssets)}
+                      value={formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)}
                       detail="Assets reserved for settled redeem claims"
                     />
                     <AccountingMetric
                       label="Available Idle for Strategy"
-                      value={formatAssetAmount(vaultHealth?.availableIdleAssetsForStrategy)}
+                      value={formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
                       detail={`Safe to allocate after redeem${supportsAsyncDeposits ? " and deposit" : ""} reserves`}
-                      status={<Badge variant={idleHealthStatus.variant}>{idleHealthStatus.label}</Badge>}
+                      status={<Badge variant={idleReserveStatus.variant}>{idleReserveStatus.label}</Badge>}
                     />
                   </div>
 
@@ -402,12 +558,12 @@ export default function VaultDetailPage() {
                     />
                     <AccountingMetric
                       label="Active NAV"
-                      value={formatAssetAmount(vaultHealth?.activeNavAssets)}
+                      value={formatAssetAmount(vaultContract?.activeNavAssets)}
                       detail="Current usable NAV"
                     />
                     <AccountingMetric
                       label="Share Price"
-                      value={formatSharePrice(vaultHealth?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
+                      value={formatSharePrice(vaultContract?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
                         totalAssets: liveTvl,
                         totalSupply: liveTotalSupply
                       })}
@@ -421,51 +577,51 @@ export default function VaultDetailPage() {
                         <h3 className="text-base font-medium">Asset Breakdown</h3>
                         <span className="text-xs text-muted-foreground">Live contract reads</span>
                       </div>
-                      <AccountingLine label="Vault Asset Balance" value={formatAssetAmount(vaultHealth?.vaultIdleBalance)} />
+                      <AccountingLine label="Vault Asset Balance" value={formatAssetAmount(vaultContract?.vaultIdleBalance)} />
                       <AccountingLine
                         inset
                         label="Claimable Redeem Reserve"
-                        value={formatAssetAmount(vaultHealth?.totalClaimableRedeemAssets)}
+                        value={formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)}
                       />
                       {supportsAsyncDeposits ? (
                         <AccountingLine
                           inset
                           label="Pending Deposit Assets"
-                          value={formatAssetAmount(vaultHealth?.totalPendingDepositAssets)}
+                          value={formatAssetAmount(vaultContract?.totalPendingDepositAssets)}
                         />
                       ) : null}
                       <AccountingLine
                         inset
                         label="Estimated Pending Redeem Value"
-                        value={formatAssetAmount(vaultHealth?.estimatedPendingRedeemAssets)}
+                        value={formatAssetAmount(vaultContract?.estimatedPendingRedeemAssets)}
                       />
                       <AccountingLine
                         inset
                         label="Available Idle for Strategy"
-                        value={formatAssetAmount(vaultHealth?.availableIdleAssetsForStrategy)}
+                        value={formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
                       />
                       <Separator className="my-2" />
-                      <AccountingLine label="Strategy Debt" value={formatAssetAmount(vaultHealth?.strategyDebt)} />
-                      <AccountingLine label="Active NAV" value={formatAssetAmount(vaultHealth?.activeNavAssets)} />
+                      <AccountingLine label="Strategy Debt" value={formatAssetAmount(vaultContract?.strategyDebt)} />
+                      <AccountingLine label="Active NAV" value={formatAssetAmount(vaultContract?.activeNavAssets)} />
                     </section>
 
                     <section className="rounded-lg border bg-background p-4">
                       <h3 className="mb-3 text-base font-medium">Share Supply</h3>
                       <AccountingLine
                         label="Total Supply"
-                        value={`${formatTokenAmount(vaultHealth?.totalSupply ?? vault.totalSupply, 18)} ${vault.symbol}`}
+                        value={`${formatTokenAmount(vaultContract?.totalSupply ?? vault.totalSupply, 18)} ${vault.symbol}`}
                       />
                       <AccountingLine
                         label="Active Share Supply"
-                        value={`${formatTokenAmount(vaultHealth?.activeShareSupply, 18)} ${vault.symbol}`}
+                        value={`${formatTokenAmount(vaultContract?.activeShareSupply, 18)} ${vault.symbol}`}
                       />
                       <AccountingLine
                         label="Claimable Redeem Net Shares"
-                        value={`${formatTokenAmount(vaultHealth?.totalClaimableRedeemNetShares, 18)} ${vault.symbol}`}
+                        value={`${formatTokenAmount(vaultContract?.totalClaimableRedeemNetShares, 18)} ${vault.symbol}`}
                       />
                       <AccountingLine
                         label="Pending Redeem Shares"
-                        value={`${formatTokenAmount(vaultHealth?.pendingRedeemShares, 18)} ${vault.symbol}`}
+                        value={`${formatTokenAmount(vaultContract?.pendingRedeemShares, 18)} ${vault.symbol}`}
                       />
                     </section>
 
@@ -473,15 +629,15 @@ export default function VaultDetailPage() {
                       <h3 className="mb-3 text-base font-medium">Cached NAV</h3>
                       <AccountingLine
                         label="Cached NAV Assets"
-                        value={formatAssetAmount(vaultHealth?.cachedActiveNav.assets)}
+                        value={formatAssetAmount(vaultContract?.cachedActiveNav.assets)}
                       />
                       <AccountingLine
                         label="Cached NAV Report ID"
-                        value={vaultHealth ? `#${vaultHealth.cachedActiveNav.reportId}` : "--"}
+                        value={vaultContract ? `#${vaultContract.cachedActiveNav.reportId}` : "--"}
                       />
                       <AccountingLine
                         label="Cached NAV Oracle"
-                        value={<ExplorerChip value={vaultHealth?.cachedActiveNav.oracle} />}
+                        value={<ExplorerChip value={vaultContract?.cachedActiveNav.oracle} />}
                       />
                     </section>
                   </div>
@@ -510,7 +666,7 @@ export default function VaultDetailPage() {
                           items={[
                             {
                               label: "Pending Assets",
-                              value: formatAssetAmount(vaultHealth?.totalPendingDepositAssets)
+                              value: formatAssetAmount(vaultContract?.totalPendingDepositAssets)
                             },
                             {
                               label: "Latest Settled Epoch",
@@ -553,19 +709,19 @@ export default function VaultDetailPage() {
                         items={[
                           {
                             label: "Current Epoch",
-                            value: vaultHealth?.currentRedeemEpochId ? `#${vaultHealth.currentRedeemEpochId}` : "--"
+                            value: vaultContract?.currentRedeemEpochId ? `#${vaultContract.currentRedeemEpochId}` : "--"
                           },
                           {
                             label: "Pending Shares",
-                            value: `${formatTokenAmount(vaultHealth?.pendingRedeemShares, 18)} ${vault.symbol}`
+                            value: `${formatTokenAmount(vaultContract?.pendingRedeemShares, 18)} ${vault.symbol}`
                           },
                           {
                             label: "Estimated Pending Value",
-                            value: formatAssetAmount(vaultHealth?.estimatedPendingRedeemAssets)
+                            value: formatAssetAmount(vaultContract?.estimatedPendingRedeemAssets)
                           },
                           {
                             label: "Claimable Reserve",
-                            value: formatAssetAmount(vaultHealth?.totalClaimableRedeemAssets)
+                            value: formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)
                           },
                           {
                             label: "Latest Settled Epoch",
@@ -605,7 +761,7 @@ export default function VaultDetailPage() {
                       <div className="rounded-md border p-3">
                         <p className="text-sm text-muted-foreground">Can users claim?</p>
                         <p className="mt-1 font-medium">
-                          {BigInt(vaultHealth?.totalClaimableRedeemAssets ?? "0") > BigInt(0)
+                          {BigInt(vaultContract?.totalClaimableRedeemAssets ?? "0") > BigInt(0)
                             ? "Redeem claims available"
                             : "No redeem reserve"}
                         </p>
@@ -882,7 +1038,7 @@ export default function VaultDetailPage() {
                   <div className="grid gap-4 xl:grid-cols-3">
                     <AccountingMetric
                       label="Total Strategy Debt"
-                      value={formatAssetAmount(vaultHealth?.strategyDebt ?? vault.strategyManager.totalStrategyDebt)}
+                      value={formatAssetAmount(vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt)}
                       detail="Live manager debt when available"
                     />
                     <AccountingMetric
@@ -892,9 +1048,9 @@ export default function VaultDetailPage() {
                     />
                     <AccountingMetric
                       label="Available Idle for Strategy"
-                      value={formatAssetAmount(vaultHealth?.availableIdleAssetsForStrategy)}
+                      value={formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
                       detail="Idle assets available after reserves"
-                      status={<Badge variant={idleHealthStatus.variant}>{idleHealthStatus.label}</Badge>}
+                      status={<Badge variant={idleReserveStatus.variant}>{idleReserveStatus.label}</Badge>}
                     />
                   </div>
 
@@ -996,7 +1152,7 @@ export default function VaultDetailPage() {
                     />
                     <AccountingMetric
                       label="Latest NAV"
-                      value={formatAssetAmount(latestReport?.navAssets ?? vaultHealth?.cachedActiveNav.assets)}
+                      value={formatAssetAmount(latestReport?.navAssets ?? vaultContract?.cachedActiveNav.assets)}
                       detail="Latest submitted report or cached active NAV"
                     />
                     <AccountingMetric
@@ -1034,11 +1190,11 @@ export default function VaultDetailPage() {
                         {
                           label: "Active NAV Source",
                           value: isReportFresh === false ? "Cached active NAV fallback" : "Latest fresh report",
-                          detail: `Cached report #${vaultHealth?.cachedActiveNav.reportId ?? "--"}`
+                          detail: `Cached report #${vaultContract?.cachedActiveNav.reportId ?? "--"}`
                         },
                         {
                           label: "Cached NAV Oracle",
-                          value: <ExplorerChip value={vaultHealth?.cachedActiveNav.oracle} />
+                          value: <ExplorerChip value={vaultContract?.cachedActiveNav.oracle} />
                         },
                         {
                           label: "Last Indexed Update",
@@ -1256,64 +1412,244 @@ export default function VaultDetailPage() {
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold tracking-normal">Operations</h2>
                     <p className="text-sm text-muted-foreground">
-                      Prepare admin actions for the connected signer.
+                      Prepare strategy, epoch, and oracle actions for the connected signer.
                     </p>
                   </div>
 
                   <Card className="border-primary/30">
                     <CardContent className="pt-6">
-                      <Tabs defaultValue="settle">
-                        <TabsList className="mb-4">
-                          <TabsTrigger value="settle">Settle</TabsTrigger>
-                          <TabsTrigger value="report">Report</TabsTrigger>
+                      <Tabs defaultValue="strategy">
+                        <TabsList className="mb-5 max-w-full justify-start overflow-x-auto overflow-y-hidden">
+                          <TabsTrigger value="strategy">Strategy Management</TabsTrigger>
+                          <TabsTrigger value="epoch">Epoch Management</TabsTrigger>
+                          <TabsTrigger value="oracle">Oracle</TabsTrigger>
                         </TabsList>
-                        <TabsContent value="settle">
-                          <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleSettleSubmit}>
-                            <div className="space-y-4">
-                              <Tabs value={settleType} onValueChange={(value) => setSettleType(value as OperationType)}>
-                                <TabsList>
-                                  <TabsTrigger value="deposit">Deposit</TabsTrigger>
-                                  <TabsTrigger value="redeem">Redeem</TabsTrigger>
-                                </TabsList>
-                              </Tabs>
-                              <div className="space-y-2">
-                                <Label htmlFor="settle-epoch">Epoch ID</Label>
+
+                        <TabsContent value="strategy">
+                          <div className="grid gap-4 xl:grid-cols-3">
+                            <form className="rounded-lg border bg-background p-4" onSubmit={handleAddStrategySubmit}>
+                              <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium">Add Strategy</h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">Strategy manager addStrategy</p>
+                                </div>
+                                <Badge variant="outline">Config</Badge>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="strategy-address">Strategy Address</Label>
+                                  <Input
+                                    id="strategy-address"
+                                    placeholder="0x..."
+                                    value={strategyAddress}
+                                    onChange={(event) => setStrategyAddress(event.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Strategy Kind</Label>
+                                  <Tabs value={strategyKind} onValueChange={(value) => setStrategyKind(value as StrategyKind)}>
+                                    <TabsList>
+                                      <TabsTrigger value="0">Offchain</TabsTrigger>
+                                      <TabsTrigger value="1">Adapter</TabsTrigger>
+                                    </TabsList>
+                                  </Tabs>
+                                </div>
+                                <Alert>
+                                  <AlertTitle>addStrategy(address, kind)</AlertTitle>
+                                  <AlertDescription>
+                                    <ExplorerChip value={vault.strategyManager.address} />
+                                  </AlertDescription>
+                                </Alert>
+                                <AuthGuard>
+                                  <Button className="w-full" disabled={isAddingStrategy} type="submit">
+                                    <Plus />
+                                    {isAddingStrategy ? "Adding Strategy..." : "Add Strategy"}
+                                  </Button>
+                                </AuthGuard>
+                              </div>
+                            </form>
+
+                            <form className="rounded-lg border bg-background p-4" onSubmit={handleAllocateSubmit}>
+                              <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium">Transfer Funds To Strategy</h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">Strategy manager allocateToStrategy</p>
+                                </div>
+                                <Badge variant={idleReserveStatus.variant}>{idleReserveStatus.label}</Badge>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="allocate-strategy">Strategy Address</Label>
+                                  <Input
+                                    id="allocate-strategy"
+                                    placeholder="0x..."
+                                    value={allocateStrategyAddress}
+                                    onChange={(event) => setAllocateStrategyAddress(event.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="allocate-assets">Assets</Label>
+                                  <Input
+                                    id="allocate-assets"
+                                    inputMode="numeric"
+                                    placeholder={`Raw ${assetSymbol} units`}
+                                    value={allocateAssets}
+                                    onChange={(event) => setAllocateAssets(event.target.value)}
+                                  />
+                                </div>
+                                <Alert>
+                                  <AlertTitle>allocateToStrategy(strategy, assets)</AlertTitle>
+                                  <AlertDescription>
+                                    Available: {formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
+                                  </AlertDescription>
+                                </Alert>
+                                <AuthGuard>
+                                  <Button className="w-full" disabled={isAllocatingStrategy} type="submit">
+                                    <ArrowUpRight />
+                                    {isAllocatingStrategy ? "Transferring..." : "Transfer To Strategy"}
+                                  </Button>
+                                </AuthGuard>
+                              </div>
+                            </form>
+
+                            <form className="rounded-lg border bg-background p-4" onSubmit={handleReturnSubmit}>
+                              <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium">Transfer Funds Back</h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">Strategy manager returnFromStrategy</p>
+                                </div>
+                                <Badge variant="outline">Allocator</Badge>
+                              </div>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="return-strategy">Strategy Address</Label>
+                                  <Input
+                                    id="return-strategy"
+                                    placeholder="0x..."
+                                    value={returnStrategyAddress}
+                                    onChange={(event) => setReturnStrategyAddress(event.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="return-assets">Assets</Label>
+                                  <Input
+                                    id="return-assets"
+                                    inputMode="numeric"
+                                    placeholder={`Raw ${assetSymbol} units`}
+                                    value={returnAssets}
+                                    onChange={(event) => setReturnAssets(event.target.value)}
+                                  />
+                                </div>
+                                <Alert>
+                                  <AlertTitle>returnFromStrategy(strategy, assets)</AlertTitle>
+                                  <AlertDescription>
+                                    Total debt: {formatAssetAmount(vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt)}
+                                  </AlertDescription>
+                                </Alert>
+                                <AuthGuard>
+                                  <Button className="w-full" type="submit">
+                                    <ArrowDownLeft />
+                                    Prepare Return
+                                  </Button>
+                                </AuthGuard>
+                              </div>
+                            </form>
+                          </div>
+                        </TabsContent>
+
+                        <TabsContent value="epoch">
+                          <div className="grid gap-4 lg:grid-cols-2">
+                            <form className="rounded-lg border bg-background p-4" onSubmit={handleCloseSubmit}>
+                              <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium">Close Epoch</h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">Vault closeDepositEpoch or closeRedeemEpoch</p>
+                                </div>
+                                <Badge variant="outline">Settlement</Badge>
+                              </div>
+                              <div className="space-y-4">
+                                <Tabs value={closeType} onValueChange={(value) => setCloseType(value as OperationType)}>
+                                  <TabsList>
+                                    {supportsAsyncDeposits ? <TabsTrigger value="deposit">Deposit</TabsTrigger> : null}
+                                    <TabsTrigger value="redeem">Redeem</TabsTrigger>
+                                  </TabsList>
+                                </Tabs>
+                                <div className="space-y-2">
+                                  <Label htmlFor="close-epoch">Epoch ID</Label>
+                                  <Input
+                                    id="close-epoch"
+                                    inputMode="numeric"
+                                    placeholder={closeType === "redeem" ? vaultContract?.currentRedeemEpochId ?? "Current epoch id" : "Current deposit epoch id"}
+                                    value={closeEpochId}
+                                    onChange={(event) => setCloseEpochId(event.target.value)}
+                                  />
+                                </div>
+                                <Alert>
+                                  <AlertTitle>{closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch"}</AlertTitle>
+                                  <AlertDescription>
+                                    <ExplorerChip value={vault.address} />
+                                  </AlertDescription>
+                                </Alert>
+                                <AuthGuard>
+                                  <Button className="w-full" type="submit">
+                                    <LockKeyhole />
+                                    Prepare Close
+                                  </Button>
+                                </AuthGuard>
+                              </div>
+                            </form>
+
+                            <form className="rounded-lg border bg-background p-4" onSubmit={handleSettleSubmit}>
+                              <div className="mb-4 flex items-center justify-between gap-3">
+                                <div>
+                                  <h3 className="text-base font-medium">Settle Epoch</h3>
+                                  <p className="mt-1 text-xs text-muted-foreground">Vault settleDepositEpoch or settleRedeemEpoch</p>
+                                </div>
+                                <Badge variant={isReportFresh === false ? "destructive" : "default"}>
+                                  {isReportFresh === false ? "Stale Report" : "Fresh Report"}
+                                </Badge>
+                              </div>
+                              <div className="space-y-4">
+                                <Tabs value={settleType} onValueChange={(value) => setSettleType(value as OperationType)}>
+                                  <TabsList>
+                                    {supportsAsyncDeposits ? <TabsTrigger value="deposit">Deposit</TabsTrigger> : null}
+                                    <TabsTrigger value="redeem">Redeem</TabsTrigger>
+                                  </TabsList>
+                                </Tabs>
+                                <div className="space-y-2">
+                                  <Label htmlFor="settle-epoch">Epoch ID</Label>
                                 <Input
                                   id="settle-epoch"
                                   inputMode="numeric"
-                                  placeholder="Current epoch id"
+                                  placeholder={settleType === "redeem" ? vaultContract?.currentRedeemEpochId ?? "Current epoch id" : "Current deposit epoch id"}
                                   value={settleEpochId}
                                   onChange={(event) => setSettleEpochId(event.target.value)}
                                 />
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="settle-report">Report ID</Label>
-                                <Input
-                                  id="settle-report"
-                                  inputMode="numeric"
-                                  placeholder={String(latestReportId)}
-                                  value={settleReportId}
-                                  onChange={(event) => setSettleReportId(event.target.value)}
-                                />
-                              </div>
-                            </div>
-                            <div className="flex min-w-0 flex-col justify-between gap-4">
                               <Alert>
                                 <AlertTitle>{settleType === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch"}</AlertTitle>
                                 <AlertDescription>
-                                  <ExplorerChip value={vault.address} />
+                                  Latest oracle report #{latestReportId || "--"}
                                 </AlertDescription>
                               </Alert>
-                              <Button className="w-full" type="submit">
-                                <Send />
-                                Prepare Settle
-                              </Button>
+                              <AuthGuard>
+                                <Button className="w-full" type="submit">
+                                  <CheckCircle2 />
+                                  Prepare Settle
+                                </Button>
+                              </AuthGuard>
                             </div>
                           </form>
+                          </div>
                         </TabsContent>
-                        <TabsContent value="report">
-                          <form className="grid gap-4 lg:grid-cols-2" onSubmit={handleReportSubmit}>
+
+                        <TabsContent value="oracle">
+                          <form className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-2" onSubmit={handleReportSubmit}>
                             <div className="space-y-4">
+                              <div>
+                                <h3 className="text-base font-medium">Report Oracle</h3>
+                                <p className="mt-1 text-xs text-muted-foreground">Report oracle submitReport</p>
+                              </div>
                               <div className="space-y-2">
                                 <Label htmlFor="report-nav">NAV Assets</Label>
                                 <Input
@@ -1322,16 +1658,6 @@ export default function VaultDetailPage() {
                                   placeholder="Raw asset units"
                                   value={reportNavAssets}
                                   onChange={(event) => setReportNavAssets(event.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="report-price">Assets Per Share</Label>
-                                <Input
-                                  id="report-price"
-                                  inputMode="numeric"
-                                  placeholder="Raw oracle value"
-                                  value={reportAssetsPerShare}
-                                  onChange={(event) => setReportAssetsPerShare(event.target.value)}
                                 />
                               </div>
                               <div className="space-y-2">
@@ -1360,10 +1686,12 @@ export default function VaultDetailPage() {
                                   <ExplorerChip value={vault.valuationOracle.address} />
                                 </AlertDescription>
                               </Alert>
-                              <Button className="w-full" type="submit">
-                                <FileText />
-                                Prepare Report
-                              </Button>
+                              <AuthGuard>
+                                <Button className="w-full" type="submit">
+                                  <FileText />
+                                  Prepare Report
+                                </Button>
+                              </AuthGuard>
                             </div>
                           </form>
                         </TabsContent>

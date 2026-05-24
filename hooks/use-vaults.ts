@@ -1,13 +1,14 @@
 "use client";
 
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { createPublicClient, http, parseAbi, type Address } from "viem";
+import { createPublicClient, erc20Abi, http, type Address } from "viem";
 import {
   VaultDetailDocument,
   VaultsDashboardDocument,
   type VaultDetailQuery,
   type VaultsDashboardQuery
 } from "@/graphql/generated/graphql";
+import { feeManagerAbi, strategyManagerAbi, vaultAbi } from "@/lib/abis";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { queryKeys } from "@/lib/query-keys";
 import { base } from "viem/chains";
@@ -20,44 +21,7 @@ const publicClient = createPublicClient({
   transport: http(chainRpcUrl)
 });
 
-const vaultHealthAbi = parseAbi([
-  "function totalAssets() view returns (uint256)",
-  "function activeNavAssets() view returns (uint256)",
-  "function trustedAssetsPerShare() view returns (uint256)",
-  "function availableIdleAssetsForStrategy() view returns (uint256)",
-  "function totalPendingDepositAssets() view returns (uint256)",
-  "function totalClaimableRedeemAssets() view returns (uint256)",
-  "function totalClaimableRedeemNetShares() view returns (uint256)",
-  "function totalSupply() view returns (uint256)",
-  "function activeShareSupply() view returns (uint256)",
-  "function cachedActiveNav() view returns (uint256 assets, uint256 reportId, address oracle)",
-  "function currentRedeemEpochId() view returns (uint256)",
-  "function redeemEpoch(uint256 epochId) view returns ((uint256 totalPendingShares, uint256 openedAt, uint256 reportId, uint256 settledAssetsPerShare, uint32 redeemFeeRate, uint32 protocolFeeRate, uint256 closedAt, uint256 settledAt, uint8 status))",
-  "function asset() view returns (address)",
-  "function strategyManager() view returns (address)",
-  "function feeManager() view returns (address)"
-]);
-
-const erc20Abi = parseAbi([
-  "function balanceOf(address account) view returns (uint256)",
-  "function decimals() view returns (uint8)"
-]);
-const strategyManagerAbi = parseAbi(["function totalStrategyDebt() view returns (uint256)"]);
-const feeManagerAbi = parseAbi([
-  "function vault() view returns (address)",
-  "function feeRecipient() view returns (address)",
-  "function protocolFeeRecipient() view returns (address)",
-  "function depositFeeRate() view returns (uint32)",
-  "function redeemFeeRate() view returns (uint32)",
-  "function performanceFeeRate() view returns (uint32)",
-  "function protocolFeeRate() view returns (uint32)",
-  "function managementFeeRate() view returns (uint32)",
-  "function lastManagementFeeAccruedAt() view returns (uint256)",
-  "function highWaterMarkAssetsPerShare() view returns (uint256)",
-  "function feesInitialized() view returns (bool)"
-]);
-
-export type VaultHealth = {
+export type VaultContract = {
   totalAssets: string;
   activeNavAssets: string;
   trustedAssetsPerShare: string;
@@ -103,11 +67,11 @@ function estimatePendingRedeemAssets(pendingShares: bigint, trustedAssetsPerShar
   return (pendingShares * trustedAssetsPerShare * assetUnit) / (shareUnit * priceUnit);
 }
 
-async function fetchVaultHealth(address: string): Promise<VaultHealth> {
+async function fetchVaultContract(address: string): Promise<VaultContract> {
   const vaultAddress = address.toLowerCase() as Address;
   const vaultContract = {
     address: vaultAddress,
-    abi: vaultHealthAbi
+    abi: vaultAbi
   } as const;
   const [
     totalAssets,
@@ -248,26 +212,26 @@ export function useVaultsDashboard() {
   });
 }
 
-export function useVaultHealth(address: string) {
+export function useVaultContract(address: string) {
   const normalizedAddress = address.toLowerCase();
 
-  return useQuery<VaultHealth>({
-    queryKey: queryKeys.vaults.health(normalizedAddress),
-    queryFn: () => fetchVaultHealth(normalizedAddress),
+  return useQuery<VaultContract>({
+    queryKey: queryKeys.vaults.contract(normalizedAddress),
+    queryFn: () => fetchVaultContract(normalizedAddress),
     enabled: Boolean(address),
     refetchInterval: 15000,
     retry: 1
   });
 }
 
-export function useVaultsHealth(addresses: string[]) {
+export function useVaultContracts(addresses: string[]) {
   return useQueries({
     queries: addresses.map((address) => {
       const normalizedAddress = address.toLowerCase();
 
       return {
-        queryKey: queryKeys.vaults.health(normalizedAddress),
-        queryFn: () => fetchVaultHealth(normalizedAddress),
+        queryKey: queryKeys.vaults.contract(normalizedAddress),
+        queryFn: () => fetchVaultContract(normalizedAddress),
         enabled: Boolean(address),
         refetchInterval: 15000,
         retry: 1
