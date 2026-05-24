@@ -34,7 +34,17 @@ export function formatTokenAmount(
 ) {
   if (value === undefined || value === null) return "--";
 
-  const raw = BigInt(String(value));
+  const valueText = String(value);
+  if (valueText.includes(".")) {
+    const numericValue = Number(valueText);
+    if (!Number.isFinite(numericValue)) return valueText;
+
+    return new Intl.NumberFormat("en-US", {
+      maximumFractionDigits
+    }).format(numericValue);
+  }
+
+  const raw = BigInt(valueText);
   const tokenDecimals = decimals ?? 18;
   const divisor = BigInt(10) ** BigInt(tokenDecimals);
   const whole = raw / divisor;

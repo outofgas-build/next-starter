@@ -15,7 +15,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/data-table";
 import { PageContainer } from "@/components/page-container";
 import type { VaultsDashboardQuery } from "@/graphql/generated/graphql";
-import { useVaultsDashboard } from "@/hooks/use-vaults";
+import { useVaultsDashboard, useVaultsHealth } from "@/hooks/use-vaults";
 import {
   formatAddress,
   formatDate,
@@ -26,8 +26,12 @@ import {
 } from "@/lib/format";
 
 type VaultRow = VaultsDashboardQuery["vaults"][number];
+type DashboardVaultRow = VaultRow & {
+  displayTvl: string;
+  displayTotalSupply: string;
+};
 
-const columns: ColumnDef<VaultRow>[] = [
+const columns: ColumnDef<DashboardVaultRow>[] = [
   {
     accessorKey: "name",
     header: "Vault",
@@ -54,18 +58,18 @@ const columns: ColumnDef<VaultRow>[] = [
     )
   },
   {
-    accessorKey: "latestTvl",
+    accessorKey: "displayTvl",
     header: "TVL",
     cell: ({ row }) =>
-      `${formatTokenAmount(row.original.latestTvl, row.original.asset.decimals)} ${row.original.asset.symbol ?? ""}`
+      `${formatTokenAmount(row.original.displayTvl, row.original.asset.decimals)} ${row.original.asset.symbol ?? ""}`
   },
   {
     accessorKey: "latestSharePrice",
     header: "Share Price",
     cell: ({ row }) =>
       formatSharePrice(row.original.latestSharePrice, row.original.asset.decimals, {
-        totalAssets: row.original.totalAssets,
-        totalSupply: row.original.totalSupply
+        totalAssets: row.original.displayTvl,
+        totalSupply: row.original.displayTotalSupply
       })
   },
   {
@@ -104,11 +108,24 @@ export default function Home() {
   const { login, authenticated } = usePrivy();
   const { data, isLoading, isFetching, refetch, error } = useVaultsDashboard();
   const vaults = data?.vaults ?? [];
+  const vaultHealthResults = useVaultsHealth(vaults.map((vault) => vault.address));
+  const healthByAddress = new Map(
+    vaultHealthResults.map((result, index) => [vaults[index]?.address.toLowerCase(), result.data])
+  );
+  const tableVaults: DashboardVaultRow[] = vaults.map((vault) => {
+    const vaultHealth = healthByAddress.get(vault.address.toLowerCase());
+
+    return {
+      ...vault,
+      displayTvl: vaultHealth?.totalAssets ?? vault.totalAssets,
+      displayTotalSupply: vaultHealth?.totalSupply ?? vault.totalSupply
+    };
+  });
   const registry = data?.vaultRegistries[0];
   const activeVaults = vaults.filter((vault) => vault.active).length;
   const totalTvl = sumTokenAmounts(
-    vaults.map((vault) => ({
-      value: vault.latestTvl,
+    tableVaults.map((vault) => ({
+      value: vault.displayTvl,
       decimals: vault.asset.decimals
     }))
   );
@@ -178,7 +195,7 @@ export default function Home() {
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <Card className="border-primary/40 bg-primary text-primary-foreground">
           <CardHeader>
-            <CardDescription className="text-primary-foreground/75">Indexed TVL</CardDescription>
+            <CardDescription className="text-primary-foreground/75">Total Assets</CardDescription>
             <CardTitle className="text-4xl">
               {formatTokenAmount(totalTvl, 18)} {totalTvlSymbol}
             </CardTitle>
@@ -186,7 +203,7 @@ export default function Home() {
           <CardContent className="grid gap-4 text-sm text-primary-foreground/75 sm:grid-cols-3">
             <div>
               <p>Data source</p>
-              <p className="font-medium text-primary-foreground">Goldsky subgraph</p>
+              <p className="font-medium text-primary-foreground">Vault totalAssets()</p>
             </div>
             <div>
               <p>Last registry update</p>
@@ -239,7 +256,7 @@ export default function Home() {
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : (
-            <DataTable columns={columns} data={vaults} />
+            <DataTable columns={columns} data={tableVaults} />
           )}
         </CardContent>
       </Card>
