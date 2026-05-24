@@ -6,7 +6,7 @@ import { useWallets } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormEvent, ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { createWalletClient, custom, isAddress, type Address } from "viem";
+import { createWalletClient, custom, isAddress, type Address, type Hex } from "viem";
 import { base } from "viem/chains";
 import { AuthGuard } from "@/components/auth-guard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -21,7 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVaultDetail, useVaultContract, type VaultContract } from "@/hooks/use-vaults";
-import { strategyManagerAbi } from "@/lib/abis";
+import { reportOracleAbi, strategyManagerAbi, vaultAbi } from "@/lib/abis";
 import { formatAddress, formatBps, formatDate, formatInteger, formatSharePrice, formatTokenAmount } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -31,6 +31,8 @@ type StrategyKind = "0" | "1";
 type ExplorerEntity = "address" | "tx";
 
 const blockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
+const bytes32Pattern = /^0x[0-9a-fA-F]{64}$/;
+const maxUint64 = (BigInt(1) << BigInt(64)) - BigInt(1);
 
 function getExplorerUrl(value: string, entity: ExplorerEntity) {
   return `${blockExplorerUrl.replace(/\/$/, "")}/${entity}/${value}`;
@@ -239,11 +241,14 @@ export default function VaultDetailPage() {
   const [returnAssets, setReturnAssets] = useState("");
   const [closeType, setCloseType] = useState<OperationType>("redeem");
   const [closeEpochId, setCloseEpochId] = useState("");
+  const [isClosingEpoch, setIsClosingEpoch] = useState(false);
   const [settleType, setSettleType] = useState<OperationType>("redeem");
   const [settleEpochId, setSettleEpochId] = useState("");
+  const [isSettlingEpoch, setIsSettlingEpoch] = useState(false);
   const [reportNavAssets, setReportNavAssets] = useState("");
   const [reportComputedAt, setReportComputedAt] = useState(() => Math.floor(Date.now() / 1000).toString());
   const [reportMetadataHash, setReportMetadataHash] = useState("");
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
 
   const assetSymbol = vault?.asset.symbol ?? "asset";
   const assetDecimals = vault?.asset.decimals ?? 18;
@@ -385,21 +390,227 @@ export default function VaultDetailPage() {
     toast.info("returnFromStrategy UI prepared. Connect transaction execution next.");
   }
 
-  function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!vault) return;
+
     const functionName = closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch";
-    toast.info(`${functionName} UI prepared. Connect transaction execution next.`);
+
+    let epochId: bigint;
+    try {
+      epochId = BigInt(closeEpochId.trim());
+    } catch {
+      toast.error("Enter epoch ID as a raw integer.");
+      return;
+    }
+
+    if (epochId < BigInt(0)) {
+      toast.error("Epoch ID cannot be negative.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before closing an epoch.");
+      return;
+    }
+
+    try {
+      setIsClosingEpoch(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: base,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.address as Address,
+        abi: vaultAbi,
+        functionName,
+        args: [epochId]
+      });
+
+      toast.success("Close epoch transaction submitted.", {
+        description: hash
+      });
+      setCloseEpochId("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Close epoch transaction failed.");
+    } finally {
+      setIsClosingEpoch(false);
+    }
   }
 
-  function handleSettleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSettleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    if (!vault) return;
+
     const functionName = settleType === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch";
-    toast.info(`${functionName} UI prepared. Connect transaction execution next.`);
+
+    let epochId: bigint;
+    try {
+      epochId = BigInt(settleEpochId.trim());
+    } catch {
+      toast.error("Enter epoch ID as a raw integer.");
+      return;
+    }
+
+    if (epochId < BigInt(0)) {
+      toast.error("Epoch ID cannot be negative.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before settling an epoch.");
+      return;
+    }
+
+    try {
+      setIsSettlingEpoch(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: base,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.address as Address,
+        abi: vaultAbi,
+        functionName,
+        args: [epochId]
+      });
+
+      toast.success("Settle epoch transaction submitted.", {
+        description: hash
+      });
+      setSettleEpochId("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Settle epoch transaction failed.");
+    } finally {
+      setIsSettlingEpoch(false);
+    }
   }
 
-  function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    toast.info("submitReport UI prepared. Connect transaction execution next.");
+
+    if (!vault) return;
+
+    if (!isAddress(vault.valuationOracle.address)) {
+      toast.error("Report oracle address is invalid.");
+      return;
+    }
+
+    let navAssets: bigint;
+    try {
+      navAssets = BigInt(reportNavAssets.trim());
+    } catch {
+      toast.error("Enter NAV assets as raw integer units.");
+      return;
+    }
+
+    if (navAssets < BigInt(0)) {
+      toast.error("NAV assets cannot be negative.");
+      return;
+    }
+
+    let computedAt: bigint;
+    try {
+      computedAt = BigInt(reportComputedAt.trim());
+    } catch {
+      toast.error("Enter computed at as a Unix timestamp.");
+      return;
+    }
+
+    if (computedAt < BigInt(0) || computedAt > maxUint64) {
+      toast.error("Computed at must fit in uint64.");
+      return;
+    }
+
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    if (computedAt > now) {
+      toast.error("Computed at cannot be in the future.");
+      return;
+    }
+
+    const maxReportAgeSeconds = BigInt(vault.valuationOracle.maxReportAge);
+    if (maxReportAgeSeconds > BigInt(0) && computedAt + maxReportAgeSeconds < now) {
+      toast.error("Computed at is older than the oracle max report age.");
+      return;
+    }
+
+    const normalizedMetadataHash = reportMetadataHash.trim();
+    const metadataHash = normalizedMetadataHash || undefined;
+    if (vault.valuationOracle.requireReportMetadataHash && !metadataHash) {
+      toast.error("Metadata hash is required for this oracle.");
+      return;
+    }
+
+    if (metadataHash && !bytes32Pattern.test(metadataHash)) {
+      toast.error("Metadata hash must be a 32-byte hex value.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before submitting a report.");
+      return;
+    }
+
+    try {
+      setIsSubmittingReport(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: base,
+        transport: custom(provider)
+      });
+      const hash = metadataHash
+        ? await walletClient.writeContract({
+            address: vault.valuationOracle.address as Address,
+            abi: reportOracleAbi,
+            functionName: "submitReport",
+            args: [navAssets, computedAt, metadataHash as Hex]
+          })
+        : await walletClient.writeContract({
+            address: vault.valuationOracle.address as Address,
+            abi: reportOracleAbi,
+            functionName: "submitReport",
+            args: [navAssets, computedAt]
+          });
+
+      toast.success("Report transaction submitted.", {
+        description: hash
+      });
+      setReportNavAssets("");
+      setReportMetadataHash("");
+      setReportComputedAt(Math.floor(Date.now() / 1000).toString());
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Report transaction failed.");
+    } finally {
+      setIsSubmittingReport(false);
+    }
   }
 
   if (isLoading) {
@@ -447,7 +658,12 @@ export default function VaultDetailPage() {
     protocolFeeRecipient: feeManager?.protocolFeeRecipient ?? vault.protocolFeeRecipient
   };
   const latestDepositEpoch = data.depositEpoches[0];
-  const latestRedeemEpoch = data.redeemEpoches[0];
+  const latestUnsettledRedeemEpochId =
+    vaultContract?.latestUnsettledRedeemEpochId ?? vaultContract?.currentRedeemEpochId;
+  const redeemEpochCards = [
+    { label: "Current", epoch: vaultContract?.currentRedeemEpoch ?? null },
+    { label: "Last", epoch: vaultContract?.lastRedeemEpoch ?? null }
+  ];
   const latestReport = data.valuationReports[0];
   const latestReportTimestamp = latestReport ? Number(latestReport.submittedAt) : Number(vault.valuationOracle.updatedAtTimestamp);
   const maxReportAge = Number(vault.valuationOracle.maxReportAge);
@@ -463,6 +679,32 @@ export default function VaultDetailPage() {
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
     return `${Math.floor(seconds / 86400)}d`;
   };
+  const formatDurationDays = (value?: string | number | null) => {
+    if (value === undefined || value === null) return "--";
+
+    const days = Number(value) / 86_400;
+    if (!Number.isFinite(days)) return String(value);
+
+    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(days)} days`;
+  };
+  const formatRedeemEpochValue = (shares?: string, price?: string) => {
+    if (!shares || !price) return "--";
+
+    const shareAmount = BigInt(shares);
+    const sharePrice = BigInt(price);
+    if (shareAmount === BigInt(0) || sharePrice === BigInt(0)) return "--";
+
+    const assetUnit = BigInt(10) ** BigInt(assetDecimals);
+    const shareUnit = BigInt(10) ** BigInt(18);
+    const priceUnit = BigInt(10) ** BigInt(18);
+    const estimatedAssets = (shareAmount * sharePrice * assetUnit) / (shareUnit * priceUnit);
+
+    return formatAssetAmount(estimatedAssets.toString());
+  };
+  const getRedeemEpochPrice = (epoch: NonNullable<VaultContract["lastRedeemEpoch"]>) =>
+    epoch.settledAssetsPerShare !== "0" ? epoch.settledAssetsPerShare : vaultContract?.trustedAssetsPerShare;
+  const getSettledRedeemEpoch = (epochId?: string) =>
+    epochId ? data.redeemEpoches.find((epoch) => String(epoch.epochId) === epochId) : undefined;
 
   return (
     <PageContainer>
@@ -669,6 +911,10 @@ export default function VaultDetailPage() {
                               value: formatAssetAmount(vaultContract?.totalPendingDepositAssets)
                             },
                             {
+                              label: "Epoch Duration",
+                              value: formatDurationDays(vaultContract?.depositEpochDuration)
+                            },
+                            {
                               label: "Latest Settled Epoch",
                               value: latestDepositEpoch ? `#${latestDepositEpoch.epochId}` : "--",
                               detail: latestDepositEpoch
@@ -705,45 +951,93 @@ export default function VaultDetailPage() {
                           {vault.redeemsPaused ? "Paused" : "Open"}
                         </Badge>
                       </div>
-                      <InfoPairs
-                        items={[
+                        <InfoPairs
+                          items={[
                           {
-                            label: "Current Epoch",
-                            value: vaultContract?.currentRedeemEpochId ? `#${vaultContract.currentRedeemEpochId}` : "--"
-                          },
-                          {
-                            label: "Pending Shares",
-                            value: `${formatTokenAmount(vaultContract?.pendingRedeemShares, 18)} ${vault.symbol}`
-                          },
-                          {
-                            label: "Estimated Pending Value",
-                            value: formatAssetAmount(vaultContract?.estimatedPendingRedeemAssets)
+                            label: "Epoch Duration",
+                            value: formatDurationDays(vaultContract?.redeemEpochDuration)
                           },
                           {
                             label: "Claimable Reserve",
                             value: formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)
                           },
-                          {
-                            label: "Latest Settled Epoch",
-                            value: latestRedeemEpoch ? `#${latestRedeemEpoch.epochId}` : "--",
-                            detail: latestRedeemEpoch
-                              ? `Settled ${formatDate(latestRedeemEpoch.blockTimestamp)}`
-                              : undefined
-                          },
-                          {
-                            label: "Settled Assets",
-                            value: latestRedeemEpoch ? formatAssetAmount(latestRedeemEpoch.assets) : "--"
-                          },
-                          {
-                            label: "Settlement Price",
-                            value: latestRedeemEpoch
-                              ? formatSharePrice(latestRedeemEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
-                              : "--"
-                          },
                           { label: "Redeem Fee", value: formatFeeRate(feeValues.redeemFeeRate) },
                           { label: "Protocol Fee", value: formatFeeRate(feeValues.protocolFeeRate) }
                         ]}
                       />
+                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                        {redeemEpochCards.map(({ label, epoch }) => {
+                          const price = epoch ? getRedeemEpochPrice(epoch) : undefined;
+                          const settledEpoch = getSettledRedeemEpoch(epoch?.epochId);
+                          const shareLabel = epoch?.status === "Open" ? "Pending Shares" : "Shares";
+
+                          return (
+                            <div className="rounded-md border p-4" key={label}>
+                              <div className="mb-4 flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="text-xs text-muted-foreground">{label} Epoch</p>
+                                  <p className="mt-1 text-xl font-semibold tracking-normal">
+                                    {epoch ? `#${epoch.epochId}` : "--"}
+                                  </p>
+                                </div>
+                                {epoch ? (
+                                  <Badge variant={epoch.status === "Closed" ? "outline" : "secondary"}>
+                                    {epoch.status}
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="secondary">No data</Badge>
+                                )}
+                              </div>
+                              <InfoPairs
+                                items={[
+                                  {
+                                    label: shareLabel,
+                                    value: epoch ? `${formatTokenAmount(epoch.totalPendingShares, 18)} ${vault.symbol}` : "--"
+                                  },
+                                  {
+                                    label: epoch?.status === "Settled" ? "Redeemed Value" : "Estimated Value",
+                                    value: epoch ? formatRedeemEpochValue(epoch.totalPendingShares, price) : "--"
+                                  },
+                                  {
+                                    label: "Settled Assets",
+                                    value: settledEpoch ? formatAssetAmount(settledEpoch.assets) : "--"
+                                  },
+                                  {
+                                    label: "Settlement Price",
+                                    value: settledEpoch
+                                      ? formatSharePrice(settledEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
+                                      : "--"
+                                  },
+                                  {
+                                    label: "Report",
+                                    value: epoch?.reportId && epoch.reportId !== "0" ? `#${epoch.reportId}` : "--"
+                                  },
+                                  {
+                                    label: "Redeem Fee",
+                                    value: formatFeeRate(epoch?.redeemFeeRate)
+                                  },
+                                  {
+                                    label: "Protocol Fee",
+                                    value: formatFeeRate(epoch?.protocolFeeRate)
+                                  },
+                                  {
+                                    label: "Opened",
+                                    value: epoch?.openedAt && epoch.openedAt !== "0" ? formatDate(epoch.openedAt) : "--"
+                                  },
+                                  {
+                                    label: "Closed",
+                                    value: epoch?.closedAt && epoch.closedAt !== "0" ? formatDate(epoch.closedAt) : "--"
+                                  },
+                                  {
+                                    label: "Settled",
+                                    value: epoch?.settledAt && epoch.settledAt !== "0" ? formatDate(epoch.settledAt) : "--"
+                                  }
+                                ]}
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </section>
                   </div>
 
@@ -1591,9 +1885,9 @@ export default function VaultDetailPage() {
                                   </AlertDescription>
                                 </Alert>
                                 <AuthGuard>
-                                  <Button className="w-full" type="submit">
+                                  <Button className="w-full" disabled={isClosingEpoch} type="submit">
                                     <LockKeyhole />
-                                    Prepare Close
+                                    {isClosingEpoch ? "Closing Epoch..." : "Close Epoch"}
                                   </Button>
                                 </AuthGuard>
                               </div>
@@ -1621,7 +1915,7 @@ export default function VaultDetailPage() {
                                 <Input
                                   id="settle-epoch"
                                   inputMode="numeric"
-                                  placeholder={settleType === "redeem" ? vaultContract?.currentRedeemEpochId ?? "Current epoch id" : "Current deposit epoch id"}
+                                  placeholder={settleType === "redeem" ? latestUnsettledRedeemEpochId ?? "Latest unsettled epoch id" : "Current deposit epoch id"}
                                   value={settleEpochId}
                                   onChange={(event) => setSettleEpochId(event.target.value)}
                                 />
@@ -1633,9 +1927,9 @@ export default function VaultDetailPage() {
                                 </AlertDescription>
                               </Alert>
                               <AuthGuard>
-                                <Button className="w-full" type="submit">
+                                <Button className="w-full" disabled={isSettlingEpoch} type="submit">
                                   <CheckCircle2 />
-                                  Prepare Settle
+                                  {isSettlingEpoch ? "Settling Epoch..." : "Settle Epoch"}
                                 </Button>
                               </AuthGuard>
                             </div>
@@ -1687,9 +1981,9 @@ export default function VaultDetailPage() {
                                 </AlertDescription>
                               </Alert>
                               <AuthGuard>
-                                <Button className="w-full" type="submit">
+                                <Button className="w-full" disabled={isSubmittingReport} type="submit">
                                   <FileText />
-                                  Prepare Report
+                                  {isSubmittingReport ? "Submitting Report..." : "Prepare Report"}
                                 </Button>
                               </AuthGuard>
                             </div>

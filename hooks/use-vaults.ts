@@ -1,6 +1,6 @@
 "use client";
 
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { createPublicClient, erc20Abi, http, type Address } from "viem";
 import {
   VaultDetailDocument,
@@ -21,6 +21,20 @@ const publicClient = createPublicClient({
   transport: http(chainRpcUrl)
 });
 
+type RedeemEpochSnapshot = {
+  epochId: string;
+  totalPendingShares: string;
+  openedAt: string;
+  reportId: string;
+  settledAssetsPerShare: string;
+  redeemFeeRate: string;
+  protocolFeeRate: string;
+  closedAt: string;
+  settledAt: string;
+  status: "Open" | "Closed" | "Settled";
+  isEmpty: boolean;
+};
+
 export type VaultContract = {
   totalAssets: string;
   activeNavAssets: string;
@@ -31,6 +45,8 @@ export type VaultContract = {
   pendingRedeemShares: string;
   estimatedPendingRedeemAssets: string;
   totalPendingDepositAssets: string;
+  depositEpochDuration: string;
+  redeemEpochDuration: string;
   totalClaimableRedeemAssets: string;
   totalClaimableRedeemNetShares: string;
   totalSupply: string;
@@ -41,6 +57,9 @@ export type VaultContract = {
     oracle: string;
   };
   currentRedeemEpochId: string;
+  currentRedeemEpoch: RedeemEpochSnapshot;
+  lastRedeemEpoch: RedeemEpochSnapshot | null;
+  latestUnsettledRedeemEpochId: string;
   asset: string;
   strategyManager: string;
   feeManager: {
@@ -67,6 +86,52 @@ function estimatePendingRedeemAssets(pendingShares: bigint, trustedAssetsPerShar
   return (pendingShares * trustedAssetsPerShare * assetUnit) / (shareUnit * priceUnit);
 }
 
+type RedeemEpochContract = {
+  totalPendingShares: bigint;
+  openedAt: bigint;
+  reportId: bigint;
+  settledAssetsPerShare: bigint;
+  redeemFeeRate: number;
+  protocolFeeRate: number;
+  closedAt: bigint;
+  settledAt: bigint;
+  status: number;
+};
+
+function formatRedeemEpochStatus(status: number) {
+  if (status === 1) return "Closed";
+  if (status === 2) return "Settled";
+  return "Open";
+}
+
+function isEmptyRedeemEpoch(epoch: RedeemEpochContract) {
+  return (
+    epoch.totalPendingShares === BigInt(0) &&
+    epoch.openedAt === BigInt(0) &&
+    epoch.reportId === BigInt(0) &&
+    epoch.settledAssetsPerShare === BigInt(0) &&
+    epoch.closedAt === BigInt(0) &&
+    epoch.settledAt === BigInt(0) &&
+    epoch.status === 0
+  );
+}
+
+function serializeRedeemEpoch(epochId: bigint, epoch: RedeemEpochContract): RedeemEpochSnapshot {
+  return {
+    epochId: epochId.toString(),
+    totalPendingShares: epoch.totalPendingShares.toString(),
+    openedAt: epoch.openedAt.toString(),
+    reportId: epoch.reportId.toString(),
+    settledAssetsPerShare: epoch.settledAssetsPerShare.toString(),
+    redeemFeeRate: epoch.redeemFeeRate.toString(),
+    protocolFeeRate: epoch.protocolFeeRate.toString(),
+    closedAt: epoch.closedAt.toString(),
+    settledAt: epoch.settledAt.toString(),
+    status: formatRedeemEpochStatus(epoch.status),
+    isEmpty: isEmptyRedeemEpoch(epoch)
+  };
+}
+
 async function fetchVaultContract(address: string): Promise<VaultContract> {
   const vaultAddress = address.toLowerCase() as Address;
   const vaultContract = {
@@ -79,6 +144,8 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     trustedAssetsPerShare,
     availableIdleAssetsForStrategy,
     totalPendingDepositAssets,
+    depositEpochDuration,
+    redeemEpochDuration,
     totalClaimableRedeemAssets,
     totalClaimableRedeemNetShares,
     totalSupply,
@@ -96,6 +163,8 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       { ...vaultContract, functionName: "trustedAssetsPerShare" },
       { ...vaultContract, functionName: "availableIdleAssetsForStrategy" },
       { ...vaultContract, functionName: "totalPendingDepositAssets" },
+      { ...vaultContract, functionName: "depositEpochDuration" },
+      { ...vaultContract, functionName: "redeemEpochDuration" },
       { ...vaultContract, functionName: "totalClaimableRedeemAssets" },
       { ...vaultContract, functionName: "totalClaimableRedeemNetShares" },
       { ...vaultContract, functionName: "totalSupply" },
@@ -126,9 +195,25 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       }
     ]
   });
-  const pendingRedeemShares = redeemEpoch.totalPendingShares;
+  const previousRedeemEpochId = currentRedeemEpochId > BigInt(1) ? currentRedeemEpochId - BigInt(1) : null;
+  const previousRedeemEpoch = previousRedeemEpochId
+    ? await publicClient.readContract({
+        ...vaultContract,
+        functionName: "redeemEpoch",
+        args: [previousRedeemEpochId]
+      })
+    : null;
+  const currentRedeemEpochSnapshot = serializeRedeemEpoch(currentRedeemEpochId, redeemEpoch);
+  const lastRedeemEpochSnapshot = previousRedeemEpochId && previousRedeemEpoch
+    ? serializeRedeemEpoch(previousRedeemEpochId, previousRedeemEpoch)
+    : null;
+  const latestUnsettledRedeemEpoch =
+    lastRedeemEpochSnapshot && lastRedeemEpochSnapshot.status !== "Settled" && !lastRedeemEpochSnapshot.isEmpty
+      ? lastRedeemEpochSnapshot
+      : currentRedeemEpochSnapshot;
+  const displayPendingRedeemShares = BigInt(latestUnsettledRedeemEpoch.totalPendingShares);
   const estimatedPendingRedeemAssets = estimatePendingRedeemAssets(
-    pendingRedeemShares,
+    displayPendingRedeemShares,
     trustedAssetsPerShare,
     assetDecimals
   );
@@ -168,9 +253,11 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     activeNavAssets: activeNavAssets.toString(),
     trustedAssetsPerShare: trustedAssetsPerShare.toString(),
     availableIdleAssetsForStrategy: availableIdleAssetsForStrategy.toString(),
-    pendingRedeemShares: pendingRedeemShares.toString(),
+    pendingRedeemShares: displayPendingRedeemShares.toString(),
     estimatedPendingRedeemAssets: estimatedPendingRedeemAssets.toString(),
     totalPendingDepositAssets: totalPendingDepositAssets.toString(),
+    depositEpochDuration: depositEpochDuration.toString(),
+    redeemEpochDuration: redeemEpochDuration.toString(),
     totalClaimableRedeemAssets: totalClaimableRedeemAssets.toString(),
     totalClaimableRedeemNetShares: totalClaimableRedeemNetShares.toString(),
     totalSupply: totalSupply.toString(),
@@ -181,6 +268,9 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       oracle: cachedActiveNav[2]
     },
     currentRedeemEpochId: currentRedeemEpochId.toString(),
+    currentRedeemEpoch: currentRedeemEpochSnapshot,
+    lastRedeemEpoch: lastRedeemEpochSnapshot,
+    latestUnsettledRedeemEpochId: latestUnsettledRedeemEpoch.epochId,
     asset,
     strategyManager,
     feeManager: feeManagerData
@@ -221,22 +311,6 @@ export function useVaultContract(address: string) {
     enabled: Boolean(address),
     refetchInterval: 15000,
     retry: 1
-  });
-}
-
-export function useVaultContracts(addresses: string[]) {
-  return useQueries({
-    queries: addresses.map((address) => {
-      const normalizedAddress = address.toLowerCase();
-
-      return {
-        queryKey: queryKeys.vaults.contract(normalizedAddress),
-        queryFn: () => fetchVaultContract(normalizedAddress),
-        enabled: Boolean(address),
-        refetchInterval: 15000,
-        retry: 1
-      };
-    })
   });
 }
 

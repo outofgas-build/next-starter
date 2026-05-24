@@ -4,6 +4,34 @@ import type { Abi } from "viem";
 export const vaultAbi = [
   {
     type: "function",
+    name: "closeDepositEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "closeRedeemEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "settleDepositEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [{ name: "shares", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "settleRedeemEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
     name: "totalAssets",
     inputs: [],
     outputs: [{ name: "managedAssets", type: "uint256", internalType: "uint256" }],
@@ -33,6 +61,20 @@ export const vaultAbi = [
   {
     type: "function",
     name: "totalPendingDepositAssets",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "depositEpochDuration",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "redeemEpochDuration",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view"
