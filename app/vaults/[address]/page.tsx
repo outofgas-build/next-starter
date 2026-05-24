@@ -1,11 +1,9 @@
 "use client";
 
-import { ArrowLeft, Copy, ExternalLink, FileText, RefreshCw, Send, Wallet } from "lucide-react";
-import Link from "next/link";
+import { Copy, FileText, Send } from "lucide-react";
 import { useParams } from "next/navigation";
 import { FormEvent, ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { usePrivy } from "@privy-io/react-auth";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +13,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Spinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useVaultDetail, useVaultHealth, type VaultHealth } from "@/hooks/use-vaults";
@@ -46,6 +43,14 @@ function formatFeeRate(value?: string | number | null) {
   })}%`;
 }
 
+function formatVaultTypeName(value: string) {
+  if (value === "SyncDepositAsyncRedeem" || value === "Sync Deposit Async Redeem") {
+    return "Async Redeem Vault";
+  }
+
+  return value;
+}
+
 function ExplorerChip({
   value,
   entity = "address",
@@ -62,19 +67,18 @@ function ExplorerChip({
   const displayValue = label ?? formatAddress(value);
 
   return (
-    <span className={cn("inline-flex max-w-full items-center gap-1.5", className)}>
+    <span className={cn("inline-flex max-w-full items-center gap-0.5", className)}>
       <a
-        className="inline-flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-xs text-primary transition-opacity hover:opacity-80"
+        className="inline-flex min-w-0 items-center rounded-md py-1 font-mono text-xs text-primary transition-opacity hover:opacity-80"
         href={getExplorerUrl(value, entity)}
         rel="noreferrer"
         target="_blank"
         title={value}
       >
         <span className="whitespace-nowrap">{displayValue}</span>
-        <ExternalLink className="size-3 shrink-0" />
       </a>
       <Button
-        className="size-7 shrink-0"
+        className="size-6 shrink-0"
         size="icon"
         title={`Copy ${entity}`}
         type="button"
@@ -212,13 +216,8 @@ function getIdleHealthStatus(health?: VaultHealth) {
 export default function VaultDetailPage() {
   const params = useParams<{ address: string }>();
   const address = params.address;
-  const { login, authenticated } = usePrivy();
-  const { data, isLoading, isFetching, error, refetch } = useVaultDetail(address);
-  const {
-    data: vaultHealth,
-    isFetching: isHealthFetching,
-    refetch: refetchVaultHealth
-  } = useVaultHealth(address);
+  const { data, isLoading, error } = useVaultDetail(address);
+  const { data: vaultHealth } = useVaultHealth(address);
   const vault = data?.vault;
   const [settleType, setSettleType] = useState<OperationType>("deposit");
   const [settleEpochId, setSettleEpochId] = useState("");
@@ -245,11 +244,6 @@ export default function VaultDetailPage() {
   function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     toast.info("submitReport UI prepared. Connect transaction execution next.");
-  }
-
-  function handleRefresh() {
-    void refetch();
-    void refetchVaultHealth();
   }
 
   if (isLoading) {
@@ -285,6 +279,7 @@ export default function VaultDetailPage() {
 
   const liveTvl = vaultHealth?.totalAssets ?? vault.totalAssets;
   const liveTotalSupply = vaultHealth?.totalSupply ?? vault.totalSupply;
+  const vaultTypeName = formatVaultTypeName(vault.vaultTypeName);
   const feeManager = vaultHealth?.feeManager;
   const feeValues = {
     depositFeeRate: feeManager?.depositFeeRate ?? vault.depositFeeRate,
@@ -317,32 +312,15 @@ export default function VaultDetailPage() {
     <PageContainer>
       <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-6">
-          <div className="min-w-0 space-y-4">
-            <Button asChild variant="ghost" size="sm" className="-ml-3">
-              <Link href="/">
-                <ArrowLeft />
-                Back to registry
-              </Link>
-            </Button>
+          <div className="min-w-0">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="break-words text-3xl font-semibold tracking-normal">{vault.name}</h1>
                 <Badge variant={vault.active ? "default" : "secondary"}>{vault.active ? "Active" : "Inactive"}</Badge>
-                <Badge variant="outline">{vault.symbol}</Badge>
-                <Badge variant="outline">{vault.vaultTypeName}</Badge>
+                <Badge variant="outline">{vaultTypeName}</Badge>
               </div>
               <ExplorerChip value={vault.address} />
             </div>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={login}>
-              <Wallet />
-              {authenticated ? "Connected" : "Connect"}
-            </Button>
-            <Button disabled={isFetching || isHealthFetching} onClick={handleRefresh}>
-              {isFetching || isHealthFetching ? <Spinner /> : <RefreshCw />}
-              Refresh
-            </Button>
           </div>
         </div>
         <div className="grid md:grid-cols-4">
@@ -374,10 +352,10 @@ export default function VaultDetailPage() {
       </section>
 
       <section className="min-w-0 space-y-6">
-          <section className="min-w-0 overflow-">
+          <section className="min-w-0">
             <Tabs defaultValue="overview">
-              <div className="border-b mb-8">
-                <TabsList className="overflow-x-auto [&_button]:after:hidde" variant={"line"}>
+              <div className="mb-8 overflow-x-auto overflow-y-hidden border-b">
+                <TabsList className="[&_button]:after:hidden" variant={"line"}>
                   <TabsTrigger value="overview" className={'pl-0'}>Overview</TabsTrigger>
                   <TabsTrigger value="epochs">Epochs</TabsTrigger>
                   <TabsTrigger value="strategies">Strategies</TabsTrigger>
@@ -437,74 +415,76 @@ export default function VaultDetailPage() {
                     />
                   </div>
 
-                  <section className="rounded-lg border bg-background p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <h3 className="text-base font-medium">Asset Breakdown</h3>
-                      <span className="text-xs text-muted-foreground">Live contract reads</span>
-                    </div>
-                    <AccountingLine label="Vault Asset Balance" value={formatAssetAmount(vaultHealth?.vaultIdleBalance)} />
-                    <AccountingLine
-                      inset
-                      label="Claimable Redeem Reserve"
-                      value={formatAssetAmount(vaultHealth?.totalClaimableRedeemAssets)}
-                    />
-                    {supportsAsyncDeposits ? (
+                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                    <section className="rounded-lg border bg-background p-4">
+                      <div className="mb-3 flex items-center justify-between gap-3">
+                        <h3 className="text-base font-medium">Asset Breakdown</h3>
+                        <span className="text-xs text-muted-foreground">Live contract reads</span>
+                      </div>
+                      <AccountingLine label="Vault Asset Balance" value={formatAssetAmount(vaultHealth?.vaultIdleBalance)} />
                       <AccountingLine
                         inset
-                        label="Pending Deposit Assets"
-                        value={formatAssetAmount(vaultHealth?.totalPendingDepositAssets)}
+                        label="Claimable Redeem Reserve"
+                        value={formatAssetAmount(vaultHealth?.totalClaimableRedeemAssets)}
                       />
-                    ) : null}
-                    <AccountingLine
-                      inset
-                      label="Estimated Pending Redeem Value"
-                      value={formatAssetAmount(vaultHealth?.estimatedPendingRedeemAssets)}
-                    />
-                    <AccountingLine
-                      inset
-                      label="Available Idle for Strategy"
-                      value={formatAssetAmount(vaultHealth?.availableIdleAssetsForStrategy)}
-                    />
-                    <Separator className="my-2" />
-                    <AccountingLine label="Strategy Debt" value={formatAssetAmount(vaultHealth?.strategyDebt)} />
-                    <AccountingLine label="Active NAV" value={formatAssetAmount(vaultHealth?.activeNavAssets)} />
-                  </section>
+                      {supportsAsyncDeposits ? (
+                        <AccountingLine
+                          inset
+                          label="Pending Deposit Assets"
+                          value={formatAssetAmount(vaultHealth?.totalPendingDepositAssets)}
+                        />
+                      ) : null}
+                      <AccountingLine
+                        inset
+                        label="Estimated Pending Redeem Value"
+                        value={formatAssetAmount(vaultHealth?.estimatedPendingRedeemAssets)}
+                      />
+                      <AccountingLine
+                        inset
+                        label="Available Idle for Strategy"
+                        value={formatAssetAmount(vaultHealth?.availableIdleAssetsForStrategy)}
+                      />
+                      <Separator className="my-2" />
+                      <AccountingLine label="Strategy Debt" value={formatAssetAmount(vaultHealth?.strategyDebt)} />
+                      <AccountingLine label="Active NAV" value={formatAssetAmount(vaultHealth?.activeNavAssets)} />
+                    </section>
 
-                  <section className="rounded-lg border bg-background p-4">
-                    <h3 className="mb-3 text-base font-medium">Share Supply</h3>
-                    <AccountingLine
-                      label="Total Supply"
-                      value={`${formatTokenAmount(vaultHealth?.totalSupply ?? vault.totalSupply, 18)} ${vault.symbol}`}
-                    />
-                    <AccountingLine
-                      label="Active Share Supply"
-                      value={`${formatTokenAmount(vaultHealth?.activeShareSupply, 18)} ${vault.symbol}`}
-                    />
-                    <AccountingLine
-                      label="Claimable Redeem Net Shares"
-                      value={`${formatTokenAmount(vaultHealth?.totalClaimableRedeemNetShares, 18)} ${vault.symbol}`}
-                    />
-                    <AccountingLine
-                      label="Pending Redeem Shares"
-                      value={`${formatTokenAmount(vaultHealth?.pendingRedeemShares, 18)} ${vault.symbol}`}
-                    />
-                  </section>
+                    <section className="rounded-lg border bg-background p-4">
+                      <h3 className="mb-3 text-base font-medium">Share Supply</h3>
+                      <AccountingLine
+                        label="Total Supply"
+                        value={`${formatTokenAmount(vaultHealth?.totalSupply ?? vault.totalSupply, 18)} ${vault.symbol}`}
+                      />
+                      <AccountingLine
+                        label="Active Share Supply"
+                        value={`${formatTokenAmount(vaultHealth?.activeShareSupply, 18)} ${vault.symbol}`}
+                      />
+                      <AccountingLine
+                        label="Claimable Redeem Net Shares"
+                        value={`${formatTokenAmount(vaultHealth?.totalClaimableRedeemNetShares, 18)} ${vault.symbol}`}
+                      />
+                      <AccountingLine
+                        label="Pending Redeem Shares"
+                        value={`${formatTokenAmount(vaultHealth?.pendingRedeemShares, 18)} ${vault.symbol}`}
+                      />
+                    </section>
 
-                  <section className="rounded-lg border bg-background p-4">
-                    <h3 className="mb-3 text-base font-medium">Cached NAV</h3>
-                    <AccountingLine
-                      label="Cached NAV Assets"
-                      value={formatAssetAmount(vaultHealth?.cachedActiveNav.assets)}
-                    />
-                    <AccountingLine
-                      label="Cached NAV Report ID"
-                      value={vaultHealth ? `#${vaultHealth.cachedActiveNav.reportId}` : "--"}
-                    />
-                    <AccountingLine
-                      label="Cached NAV Oracle"
-                      value={<ExplorerChip value={vaultHealth?.cachedActiveNav.oracle} />}
-                    />
-                  </section>
+                    <section className="rounded-lg border bg-background p-4">
+                      <h3 className="mb-3 text-base font-medium">Cached NAV</h3>
+                      <AccountingLine
+                        label="Cached NAV Assets"
+                        value={formatAssetAmount(vaultHealth?.cachedActiveNav.assets)}
+                      />
+                      <AccountingLine
+                        label="Cached NAV Report ID"
+                        value={vaultHealth ? `#${vaultHealth.cachedActiveNav.reportId}` : "--"}
+                      />
+                      <AccountingLine
+                        label="Cached NAV Oracle"
+                        value={<ExplorerChip value={vaultHealth?.cachedActiveNav.oracle} />}
+                      />
+                    </section>
+                  </div>
                 </div>
               </TabsContent>
 
