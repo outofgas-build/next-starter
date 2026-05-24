@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  ArrowLeft,
-  BarChart3,
-  Copy,
-  ExternalLink,
-  FileText,
-  Layers3,
-  RefreshCw,
-  Send,
-  ShieldCheck,
-  Wallet
-} from "lucide-react";
+import { ArrowLeft, BarChart3, Copy, ExternalLink, FileText, RefreshCw, Send, Wallet } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { FormEvent, ReactNode, useMemo, useState } from "react";
@@ -45,6 +34,16 @@ function getExplorerUrl(value: string, entity: ExplorerEntity) {
 function copyText(label: string, value: string) {
   void navigator.clipboard.writeText(value);
   toast.success(`${label} copied`);
+}
+
+function formatFeeRate(value?: string | number | null) {
+  if (value === undefined || value === null) return "--";
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return String(value);
+
+  return `${(numericValue / 10_000).toLocaleString("en-US", {
+    maximumFractionDigits: 4
+  })}%`;
 }
 
 function ExplorerChip({
@@ -85,47 +84,6 @@ function ExplorerChip({
         <Copy className="size-3.5" />
       </Button>
     </span>
-  );
-}
-
-function SectionHeading({
-  icon: Icon,
-  title,
-  description
-}: {
-  icon: typeof BarChart3;
-  title: string;
-  description?: string;
-}) {
-  return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 flex size-8 items-center justify-center rounded-md border bg-muted">
-        <Icon className="size-4 text-primary" />
-      </div>
-      <div>
-        <h3 className="font-medium">{title}</h3>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function FactsheetRow({
-  icon,
-  title,
-  description,
-  children
-}: {
-  icon: typeof BarChart3;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="space-y-4 border-b py-6 last:border-b-0 last:pb-0 first:pt-0">
-      <SectionHeading icon={icon} title={title} description={description} />
-      <div className="min-w-0">{children}</div>
-    </section>
   );
 }
 
@@ -292,13 +250,6 @@ export default function VaultDetailPage() {
                 <Badge variant="outline">{vault.symbol}</Badge>
                 <Badge variant="outline">{vault.vaultTypeName}</Badge>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                <span>Earn</span>
-                <span>/</span>
-                <span>Vaults</span>
-                <span>/</span>
-                <span className="text-foreground">{vault.symbol}</span>
-              </div>
               <ExplorerChip value={vault.address} />
             </div>
           </div>
@@ -343,38 +294,64 @@ export default function VaultDetailPage() {
 
       <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-6">
-          <section className="min-w-0">
-            <div className="mb-5">
-              <h2 className="text-base font-medium">Factsheet</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Contract, accounting, fee, and oracle configuration.</p>
-            </div>
-            <div className="border-t">
-              <FactsheetRow
-                icon={BarChart3}
-                title="Accounting"
-                description="Current balance sheet and indexed flow metrics."
-              >
-                <InfoPairs
-                  items={[
-                    ["Total Assets", `${formatTokenAmount(vault.totalAssets, assetDecimals)} ${assetSymbol}`],
-                    ["Total Supply", formatTokenAmount(vault.totalSupply, 18)],
-                    ["Net Flow", `${formatTokenAmount(vault.netFlowAssets, assetDecimals)} ${assetSymbol}`],
-                    ["Yield Earned", `${formatTokenAmount(vault.yieldEarnedAssets, assetDecimals)} ${assetSymbol}`]
-                  ].map(([label, value]) => ({ label, value }))}
-                />
-              </FactsheetRow>
+          <section className="min-w-0 overflow-hidden">
+            <Tabs defaultValue="accounting">
+              <div className="border-b mb-8">
+                <TabsList className="overflow-x-auto [&_button" variant={"line"}>
+                  <TabsTrigger value="accounting">Accounting</TabsTrigger>
+                  <TabsTrigger value="policy">Policy</TabsTrigger>
+                  <TabsTrigger value="infrastructure">Infrastructure</TabsTrigger>
+                  <TabsTrigger value="registry">Registry</TabsTrigger>
+                </TabsList>
+              </div>
 
-              <FactsheetRow
-                icon={ShieldCheck}
-                title="Fees And Controls"
-                description="Admin policy values and current settlement gates."
-              >
+              <TabsContent value="accounting">
                 <InfoPairs
                   items={[
-                    { label: "Deposit Fee", value: formatBps(vault.depositFeeRate) },
-                    { label: "Redeem Fee", value: formatBps(vault.redeemFeeRate) },
-                    { label: "Performance Fee", value: formatBps(vault.performanceFeeRate) },
-                    { label: "Management Fee", value: formatBps(vault.managementFeeRate) },
+                    {
+                      label: "Total Assets",
+                      value: `${formatTokenAmount(vault.totalAssets, assetDecimals)} ${assetSymbol}`
+                    },
+                    { label: "Total Supply", value: formatTokenAmount(vault.totalSupply, 18) },
+                    {
+                      label: "Latest TVL",
+                      value: `${formatTokenAmount(vault.latestTvl, assetDecimals)} ${assetSymbol}`
+                    },
+                    {
+                      label: "Latest Share Price",
+                      value: formatSharePrice(vault.latestSharePrice, assetDecimals, {
+                        totalAssets: vault.totalAssets,
+                        totalSupply: vault.totalSupply
+                      })
+                    },
+                    {
+                      label: "Cumulative Deposits",
+                      value: `${formatTokenAmount(vault.cumulativeDepositAssets, assetDecimals)} ${assetSymbol}`
+                    },
+                    {
+                      label: "Cumulative Withdrawals",
+                      value: `${formatTokenAmount(vault.cumulativeWithdrawAssets, assetDecimals)} ${assetSymbol}`
+                    },
+                    {
+                      label: "Net Flow",
+                      value: `${formatTokenAmount(vault.netFlowAssets, assetDecimals)} ${assetSymbol}`
+                    },
+                    {
+                      label: "Yield Earned",
+                      value: `${formatTokenAmount(vault.yieldEarnedAssets, assetDecimals)} ${assetSymbol}`
+                    }
+                  ]}
+                />
+              </TabsContent>
+
+              <TabsContent value="policy">
+                <InfoPairs
+                  items={[
+                    { label: "Deposit Fee", value: formatFeeRate(vault.depositFeeRate) },
+                    { label: "Redeem Fee", value: formatFeeRate(vault.redeemFeeRate) },
+                    { label: "Performance Fee", value: formatFeeRate(vault.performanceFeeRate) },
+                    { label: "Protocol Fee", value: formatFeeRate(vault.protocolFeeRate) },
+                    { label: "Management Fee", value: formatFeeRate(vault.managementFeeRate) },
                     {
                       label: "Deposits",
                       value: vault.depositsPaused ? "Paused" : "Open",
@@ -384,53 +361,126 @@ export default function VaultDetailPage() {
                       label: "Redeems",
                       value: vault.redeemsPaused ? "Paused" : "Open",
                       status: vault.redeemsPaused ? "warning" : "good"
-                    }
+                    },
+                    { label: "Fee Recipient", value: <ExplorerChip value={vault.feeRecipient} /> },
+                    { label: "Protocol Fee Recipient", value: <ExplorerChip value={vault.protocolFeeRecipient} /> }
                   ]}
                 />
-              </FactsheetRow>
+              </TabsContent>
 
-              <FactsheetRow
-                icon={Layers3}
-                title="Infrastructure"
-                description="Strategy manager, valuation oracle, and indexer freshness."
-              >
+              <TabsContent value="infrastructure">
                 <InfoPairs
                   items={[
                     {
                       label: "Asset",
                       value: vault.asset.symbol ?? "Token",
-                      detail: <ExplorerChip value={vault.asset.address} />
+                      detail: (
+                        <div className="space-y-1">
+                          <div>
+                            {vault.asset.name ?? "Unnamed token"} · {formatInteger(vault.asset.decimals)} decimals
+                          </div>
+                          <ExplorerChip value={vault.asset.address} />
+                        </div>
+                      )
                     },
                     {
                       label: "Strategy Manager",
                       value: <ExplorerChip value={vault.strategyManager.address} />,
-                      detail: `Debt ${formatTokenAmount(vault.strategyManager.totalStrategyDebt, assetDecimals)} ${assetSymbol}`,
+                      detail: (
+                        <div className="space-y-1">
+                          <div>
+                            Debt {formatTokenAmount(vault.strategyManager.totalStrategyDebt, assetDecimals)}{" "}
+                            {assetSymbol}
+                          </div>
+                          <div>
+                            Reported{" "}
+                            {formatTokenAmount(vault.strategyManager.totalStrategyReportedAssets, assetDecimals)}{" "}
+                            {assetSymbol}
+                          </div>
+                          <div>
+                            Max debt {formatTokenAmount(vault.strategyManager.maxTotalStrategyDebt, assetDecimals)}{" "}
+                            {assetSymbol}
+                          </div>
+                        </div>
+                      )
+                    },
+                    {
+                      label: "Strategy Allocation",
+                      value: vault.strategyManager.allocationPaused ? "Paused" : "Open",
+                      status: vault.strategyManager.allocationPaused ? "warning" : "good"
+                    },
+                    {
+                      label: "Strategy Execution",
+                      value: vault.strategyManager.executionPaused ? "Paused" : "Open",
+                      status: vault.strategyManager.executionPaused ? "warning" : "good"
                     },
                     {
                       label: "Valuation Oracle",
                       value: <ExplorerChip value={vault.valuationOracle.address} />,
-                      detail: `Quorum ${vault.valuationOracle.oracleQuorum}/${vault.valuationOracle.oracleCount}`,
+                      detail: `Quorum ${vault.valuationOracle.oracleQuorum}/${vault.valuationOracle.oracleCount}`
+                    },
+                    {
+                      label: "Latest Report",
+                      value: `#${vault.valuationOracle.latestReportId}`,
+                      detail: `Updated ${formatDate(vault.valuationOracle.updatedAtTimestamp)}`
                     },
                     {
                       label: "Max Report Age",
-                      value: `${formatInteger(vault.valuationOracle.maxReportAge)} seconds`,
-                      detail: `Updated ${formatDate(vault.valuationOracle.updatedAtTimestamp)}`
+                      value: `${formatInteger(vault.valuationOracle.maxReportAge)} seconds`
+                    },
+                    {
+                      label: "Max Oracle Change",
+                      value: formatBps(vault.valuationOracle.maxChangeBps)
+                    },
+                    {
+                      label: "Metadata Hash",
+                      value: vault.valuationOracle.requireReportMetadataHash ? "Required" : "Optional",
+                      status: vault.valuationOracle.requireReportMetadataHash ? "neutral" : "good"
+                    }
+                  ]}
+                />
+              </TabsContent>
+
+              <TabsContent value="registry">
+                <InfoPairs
+                  items={[
+                    { label: "Vault Address", value: <ExplorerChip value={vault.address} /> },
+                    { label: "Vault Type", value: vault.vaultTypeName, detail: `Type ${vault.vaultType}` },
+                    {
+                      label: "Registry",
+                      value: <ExplorerChip value={vault.registry.address} />,
+                      detail: `${formatInteger(vault.registry.vaultCount)} registered vaults`
                     },
                     {
                       label: "Registered",
                       value: formatDate(vault.registeredAtTimestamp),
-                      detail: `Block ${formatInteger(vault.registeredAtBlock)}`
+                      detail: (
+                        <div className="space-y-1">
+                          <div>Block {formatInteger(vault.registeredAtBlock)}</div>
+                          <ExplorerChip entity="tx" value={vault.registeredAtTransaction} />
+                        </div>
+                      )
+                    },
+                    {
+                      label: "Last Indexed Update",
+                      value: formatDate(vault.updatedAtTimestamp),
+                      detail: `Block ${formatInteger(vault.updatedAtBlock)}`
+                    },
+                    {
+                      label: "Indexer",
+                      value: data._meta?.hasIndexingErrors ? "Indexing errors" : "Healthy",
+                      status: data._meta?.hasIndexingErrors ? "warning" : "good",
+                      detail: `Subgraph block ${formatInteger(data._meta?.block.number)}`
                     }
                   ]}
                 />
-              </FactsheetRow>
-            </div>
+              </TabsContent>
+            </Tabs>
           </section>
 
           <Card>
             <CardHeader className="border-b bg-muted/20">
               <CardTitle>Activity</CardTitle>
-              <CardDescription>Reports, strategies, settlements, requests, and metric snapshots.</CardDescription>
             </CardHeader>
             <CardContent className="overflow-hidden">
               <Tabs defaultValue="reports">
@@ -449,8 +499,11 @@ export default function VaultDetailPage() {
                         <TableHead>Report</TableHead>
                         <TableHead>NAV</TableHead>
                         <TableHead>Price</TableHead>
+                        <TableHead>Metadata</TableHead>
                         <TableHead>Reporter</TableHead>
                         <TableHead>Computed</TableHead>
+                        <TableHead>Submitted</TableHead>
+                        <TableHead>Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -462,15 +515,20 @@ export default function VaultDetailPage() {
                             <TableCell>
                               {formatSharePrice(report.assetsPerShare, assetDecimals, { scale: "oracle" })}
                             </TableCell>
+                            <TableCell className="font-mono text-xs">{formatAddress(report.metadataHash)}</TableCell>
                             <TableCell>
                               <ExplorerChip value={report.reporter} />
                             </TableCell>
                             <TableCell>{formatDate(report.computedAt)}</TableCell>
+                            <TableCell>{formatDate(report.submittedAt)}</TableCell>
+                            <TableCell>
+                              <ExplorerChip entity="tx" value={report.transactionHash} />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5}>No reports indexed yet.</TableCell>
+                          <TableCell colSpan={8}>No reports indexed yet.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -482,9 +540,12 @@ export default function VaultDetailPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Adapter</TableHead>
+                        <TableHead>Kind</TableHead>
                         <TableHead>Allowed</TableHead>
                         <TableHead>Debt</TableHead>
                         <TableHead>Reported</TableHead>
+                        <TableHead>Max Debt</TableHead>
+                        <TableHead>Updated</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -494,6 +555,7 @@ export default function VaultDetailPage() {
                             <TableCell>
                               <ExplorerChip value={strategy.address} />
                             </TableCell>
+                            <TableCell>{strategy.kind}</TableCell>
                             <TableCell>
                               <Badge variant={strategy.allowed ? "default" : "secondary"}>
                                 {strategy.allowed ? "Allowed" : "Blocked"}
@@ -501,11 +563,13 @@ export default function VaultDetailPage() {
                             </TableCell>
                             <TableCell>{formatTokenAmount(strategy.debtAssets, assetDecimals)}</TableCell>
                             <TableCell>{formatTokenAmount(strategy.reportedAssets, assetDecimals)}</TableCell>
+                            <TableCell>{formatTokenAmount(strategy.maxDebtAssets, assetDecimals)}</TableCell>
+                            <TableCell>{formatDate(strategy.updatedAtTimestamp)}</TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4}>No strategies indexed yet.</TableCell>
+                          <TableCell colSpan={7}>No strategies indexed yet.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -519,7 +583,10 @@ export default function VaultDetailPage() {
                         <TableHead>Deposit Epoch</TableHead>
                         <TableHead>Assets</TableHead>
                         <TableHead>Shares</TableHead>
+                        <TableHead>Price</TableHead>
                         <TableHead>Report</TableHead>
+                        <TableHead>Settled</TableHead>
+                        <TableHead>Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -529,12 +596,19 @@ export default function VaultDetailPage() {
                             <TableCell>#{epoch.epochId}</TableCell>
                             <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
                             <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
+                            <TableCell>
+                              {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
+                            </TableCell>
                             <TableCell>#{epoch.reportId}</TableCell>
+                            <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
+                            <TableCell>
+                              <ExplorerChip entity="tx" value={epoch.transactionHash} />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4}>No settled deposit epochs.</TableCell>
+                          <TableCell colSpan={7}>No settled deposit epochs.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -545,7 +619,10 @@ export default function VaultDetailPage() {
                         <TableHead>Redeem Epoch</TableHead>
                         <TableHead>Shares</TableHead>
                         <TableHead>Assets</TableHead>
+                        <TableHead>Price</TableHead>
                         <TableHead>Report</TableHead>
+                        <TableHead>Settled</TableHead>
+                        <TableHead>Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -555,12 +632,19 @@ export default function VaultDetailPage() {
                             <TableCell>#{epoch.epochId}</TableCell>
                             <TableCell>{formatTokenAmount(epoch.shares, 18)}</TableCell>
                             <TableCell>{formatTokenAmount(epoch.assets, assetDecimals)}</TableCell>
+                            <TableCell>
+                              {formatSharePrice(epoch.assetsPerShare, assetDecimals, { scale: "oracle" })}
+                            </TableCell>
                             <TableCell>#{epoch.reportId}</TableCell>
+                            <TableCell>{formatDate(epoch.blockTimestamp)}</TableCell>
+                            <TableCell>
+                              <ExplorerChip entity="tx" value={epoch.transactionHash} />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4}>No settled redeem epochs.</TableCell>
+                          <TableCell colSpan={7}>No settled redeem epochs.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -573,8 +657,12 @@ export default function VaultDetailPage() {
                       <TableRow>
                         <TableHead>Deposit</TableHead>
                         <TableHead>Controller</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Sender</TableHead>
                         <TableHead>Assets</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Updated</TableHead>
+                        <TableHead>Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -585,17 +673,32 @@ export default function VaultDetailPage() {
                             <TableCell>
                               <ExplorerChip value={request.controller} />
                             </TableCell>
+                            <TableCell>
+                              <ExplorerChip value={request.owner} />
+                            </TableCell>
+                            <TableCell>
+                              <ExplorerChip value={request.sender} />
+                            </TableCell>
                             <TableCell>{formatTokenAmount(request.assets, assetDecimals)}</TableCell>
                             <TableCell>
                               <Badge variant={request.canceled ? "secondary" : "default"}>
                                 {request.canceled ? "Canceled" : "Pending"}
                               </Badge>
                             </TableCell>
+                            <TableCell>
+                              <div>{formatDate(request.updatedAtTimestamp)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Created {formatDate(request.createdAtTimestamp)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <ExplorerChip entity="tx" value={request.createdAtTransaction} />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4}>No recent deposit requests.</TableCell>
+                          <TableCell colSpan={8}>No recent deposit requests.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -605,8 +708,12 @@ export default function VaultDetailPage() {
                       <TableRow>
                         <TableHead>Redeem</TableHead>
                         <TableHead>Controller</TableHead>
+                        <TableHead>Owner</TableHead>
+                        <TableHead>Sender</TableHead>
                         <TableHead>Shares</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Updated</TableHead>
+                        <TableHead>Tx</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -617,17 +724,32 @@ export default function VaultDetailPage() {
                             <TableCell>
                               <ExplorerChip value={request.controller} />
                             </TableCell>
+                            <TableCell>
+                              <ExplorerChip value={request.owner} />
+                            </TableCell>
+                            <TableCell>
+                              <ExplorerChip value={request.sender} />
+                            </TableCell>
                             <TableCell>{formatTokenAmount(request.shares, 18)}</TableCell>
                             <TableCell>
                               <Badge variant={request.canceled ? "secondary" : "default"}>
                                 {request.canceled ? "Canceled" : "Pending"}
                               </Badge>
                             </TableCell>
+                            <TableCell>
+                              <div>{formatDate(request.updatedAtTimestamp)}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Created {formatDate(request.createdAtTimestamp)}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <ExplorerChip entity="tx" value={request.createdAtTransaction} />
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={4}>No recent redeem requests.</TableCell>
+                          <TableCell colSpan={8}>No recent redeem requests.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
@@ -641,7 +763,12 @@ export default function VaultDetailPage() {
                         <TableHead>Source</TableHead>
                         <TableHead>TVL</TableHead>
                         <TableHead>Total Assets</TableHead>
+                        <TableHead>Total Supply</TableHead>
+                        <TableHead>NAV</TableHead>
                         <TableHead>Share Price</TableHead>
+                        <TableHead>Report</TableHead>
+                        <TableHead>Net Flow</TableHead>
+                        <TableHead>Yield</TableHead>
                         <TableHead>Tx</TableHead>
                         <TableHead>Time</TableHead>
                       </TableRow>
@@ -653,12 +780,17 @@ export default function VaultDetailPage() {
                             <TableCell>{snapshot.source}</TableCell>
                             <TableCell>{formatTokenAmount(snapshot.tvl, assetDecimals)}</TableCell>
                             <TableCell>{formatTokenAmount(snapshot.totalAssets, assetDecimals)}</TableCell>
+                            <TableCell>{formatTokenAmount(snapshot.totalSupply, 18)}</TableCell>
+                            <TableCell>{formatTokenAmount(snapshot.navAssets, assetDecimals)}</TableCell>
                             <TableCell>
                               {formatSharePrice(snapshot.sharePrice, assetDecimals, {
                                 totalAssets: snapshot.totalAssets,
                                 totalSupply: snapshot.totalSupply
                               })}
                             </TableCell>
+                            <TableCell>{snapshot.reportId ? `#${snapshot.reportId}` : "--"}</TableCell>
+                            <TableCell>{formatTokenAmount(snapshot.netFlowAssets, assetDecimals)}</TableCell>
+                            <TableCell>{formatTokenAmount(snapshot.yieldEarnedAssets, assetDecimals)}</TableCell>
                             <TableCell>
                               <ExplorerChip entity="tx" value={snapshot.transactionHash} />
                             </TableCell>
@@ -667,7 +799,7 @@ export default function VaultDetailPage() {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6}>No snapshots indexed yet.</TableCell>
+                          <TableCell colSpan={11}>No snapshots indexed yet.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

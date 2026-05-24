@@ -89,6 +89,7 @@ export const VAULT_DETAIL = graphql(`
       redeemsPaused
       registeredAtBlock
       registeredAtTimestamp
+      registeredAtTransaction
       updatedAtBlock
       updatedAtTimestamp
       asset {
