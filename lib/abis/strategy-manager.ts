@@ -24,6 +24,16 @@ export const strategyManagerAbi = [
   },
   {
     type: "function",
+    name: "returnFromStrategy",
+    inputs: [
+      { name: "strategy", type: "address", internalType: "address" },
+      { name: "assets", type: "uint256", internalType: "uint256" }
+    ],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
     name: "totalStrategyDebt",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],

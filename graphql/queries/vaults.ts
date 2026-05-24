@@ -121,6 +121,45 @@ export const VAULT_DETAIL = graphql(`
         requireReportMetadataHash
         updatedAtTimestamp
       }
+      roles(first: 20, orderBy: roleName, orderDirection: asc) {
+        id
+        role
+        roleName
+        activeAccountCount
+        updatedAtTimestamp
+        accounts(first: 10, orderBy: updatedAtTimestamp, orderDirection: desc, where: { active: true }) {
+          id
+          account
+          active
+          grantedAtTimestamp
+          grantedBy
+          updatedAtTimestamp
+        }
+      }
+      roleAccounts(first: 20, orderBy: updatedAtTimestamp, orderDirection: desc, where: { active: true }) {
+        id
+        account
+        role
+        roleName
+        active
+        grantedAtTimestamp
+        grantedBy
+        updatedAtTimestamp
+      }
+      accessControlEvents(first: 10, orderBy: blockTimestamp, orderDirection: desc) {
+        id
+        type
+        role
+        roleName
+        account
+        sender
+        previousAdminRole
+        previousAdminRoleName
+        newAdminRole
+        newAdminRoleName
+        blockTimestamp
+        transactionHash
+      }
       snapshots(first: 8, orderBy: blockTimestamp, orderDirection: desc) {
         id
         source

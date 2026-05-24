@@ -6,7 +6,7 @@ import { useWallets } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
 import { FormEvent, ReactNode, useState } from "react";
 import { toast } from "sonner";
-import { createWalletClient, custom, isAddress, type Address, type Hex } from "viem";
+import { createPublicClient, createWalletClient, custom, erc20Abi, http, isAddress, type Address, type Hex } from "viem";
 import { base } from "viem/chains";
 import { AuthGuard } from "@/components/auth-guard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -31,8 +31,14 @@ type StrategyKind = "0" | "1";
 type ExplorerEntity = "address" | "tx";
 
 const blockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
+const chainRpcUrl = process.env.NEXT_PUBLIC_CHAIN_RPC_URL ?? "https://mainnet.base.org";
 const bytes32Pattern = /^0x[0-9a-fA-F]{64}$/;
 const maxUint64 = (BigInt(1) << BigInt(64)) - BigInt(1);
+
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http(chainRpcUrl)
+});
 
 function getExplorerUrl(value: string, entity: ExplorerEntity) {
   return `${blockExplorerUrl.replace(/\/$/, "")}/${entity}/${value}`;
@@ -59,6 +65,15 @@ function formatVaultTypeName(value: string) {
   }
 
   return value;
+}
+
+function formatRoleName(name?: string | null, role?: string | null) {
+  if (name) return name.replace(/_/g, " ");
+  return formatAddress(role);
+}
+
+function formatAccessEventType(type: string) {
+  return type.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
 }
 
 function ExplorerChip({
@@ -239,6 +254,7 @@ export default function VaultDetailPage() {
   const [isAllocatingStrategy, setIsAllocatingStrategy] = useState(false);
   const [returnStrategyAddress, setReturnStrategyAddress] = useState("");
   const [returnAssets, setReturnAssets] = useState("");
+  const [isReturningStrategy, setIsReturningStrategy] = useState(false);
   const [closeType, setCloseType] = useState<OperationType>("redeem");
   const [closeEpochId, setCloseEpochId] = useState("");
   const [isClosingEpoch, setIsClosingEpoch] = useState(false);
@@ -385,9 +401,109 @@ export default function VaultDetailPage() {
     }
   }
 
-  function handleReturnSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleReturnSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    toast.info("returnFromStrategy UI prepared. Connect transaction execution next.");
+
+    if (!vault) return;
+
+    const normalizedStrategyAddress = returnStrategyAddress.trim();
+    if (!isAddress(normalizedStrategyAddress)) {
+      toast.error("Enter a valid strategy address.");
+      return;
+    }
+
+    if (!isAddress(vault.strategyManager.address)) {
+      toast.error("Strategy manager address is invalid.");
+      return;
+    }
+
+    let assets: bigint;
+    try {
+      assets = BigInt(returnAssets.trim());
+    } catch {
+      toast.error("Enter assets as raw integer units.");
+      return;
+    }
+
+    if (assets <= BigInt(0)) {
+      toast.error("Assets must be greater than zero.");
+      return;
+    }
+
+    const totalStrategyDebt = BigInt(vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt);
+    if (assets > totalStrategyDebt) {
+      toast.error("Assets exceed total strategy debt.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before returning funds.");
+      return;
+    }
+
+    const walletAddress = wallet.address as Address;
+    const strategyManagerAddress = vault.strategyManager.address as Address;
+    const assetAddress = (vaultContract?.asset ?? vault.asset.address) as Address;
+
+    try {
+      setIsReturningStrategy(true);
+      await wallet.switchChain(base.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: walletAddress,
+        chain: base,
+        transport: custom(provider)
+      });
+
+      const allowance = await publicClient.readContract({
+        address: assetAddress,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [normalizedStrategyAddress as Address, strategyManagerAddress]
+      });
+
+      if (allowance < assets) {
+        if (walletAddress.toLowerCase() !== normalizedStrategyAddress.toLowerCase()) {
+          toast.error("Connect the strategy wallet to approve returned assets.");
+          return;
+        }
+
+        const approvalHash = await walletClient.writeContract({
+          address: assetAddress,
+          abi: erc20Abi,
+          functionName: "approve",
+          args: [strategyManagerAddress, assets]
+        });
+
+        toast.success("Approval transaction submitted.", {
+          description: approvalHash
+        });
+        await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+      }
+
+      const returnHash = await walletClient.writeContract({
+        address: strategyManagerAddress,
+        abi: strategyManagerAbi,
+        functionName: "returnFromStrategy",
+        args: [normalizedStrategyAddress as Address, assets]
+      });
+
+      toast.success("Return from strategy transaction submitted.", {
+        description: returnHash
+      });
+      setReturnStrategyAddress("");
+      setReturnAssets("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Return from strategy transaction failed.");
+    } finally {
+      setIsReturningStrategy(false);
+    }
   }
 
   async function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
@@ -1698,6 +1814,153 @@ export default function VaultDetailPage() {
                       ]}
                     />
                   </section>
+
+                  <section className="rounded-lg border bg-background p-4">
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                      <h3 className="text-base font-medium">Access Roles</h3>
+                      <Badge variant="outline">{formatInteger(vault.roleAccounts.length)} active assignments</Badge>
+                    </div>
+                    {vault.roles.length ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Active Accounts</TableHead>
+                              <TableHead>Recent Accounts</TableHead>
+                              <TableHead>Updated</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {vault.roles.map((role) => (
+                              <TableRow key={role.id}>
+                                <TableCell>
+                                  <div className="min-w-52">
+                                    <div className="text-sm font-medium">{formatRoleName(role.roleName, role.role)}</div>
+                                    <ExplorerChip value={role.role} />
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant={Number(role.activeAccountCount) > 0 ? "default" : "secondary"}>
+                                    {formatInteger(role.activeAccountCount)}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  {role.accounts.length ? (
+                                    <div className="flex min-w-72 flex-wrap gap-2">
+                                      {role.accounts.map((account) => (
+                                        <ExplorerChip key={account.id} value={account.account} />
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <span className="text-sm text-muted-foreground">--</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{formatDate(role.updatedAtTimestamp)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No access roles indexed for this vault.</p>
+                    )}
+                  </section>
+
+                  <section className="rounded-lg border bg-background p-4">
+                    <h3 className="mb-3 text-base font-medium">Active Role Accounts</h3>
+                    {vault.roleAccounts.length ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Account</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Granted</TableHead>
+                              <TableHead>Granted By</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {vault.roleAccounts.map((account) => (
+                              <TableRow key={account.id}>
+                                <TableCell>
+                                  <ExplorerChip value={account.account} />
+                                </TableCell>
+                                <TableCell>
+                                  <div className="min-w-44">
+                                    <div className="text-sm font-medium">{formatRoleName(account.roleName, account.role)}</div>
+                                    <ExplorerChip value={account.role} />
+                                  </div>
+                                </TableCell>
+                                <TableCell>{formatDate(account.grantedAtTimestamp ?? account.updatedAtTimestamp)}</TableCell>
+                                <TableCell>
+                                  <ExplorerChip value={account.grantedBy} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No active role accounts indexed for this vault.</p>
+                    )}
+                  </section>
+
+                  <section className="rounded-lg border bg-background p-4">
+                    <h3 className="mb-3 text-base font-medium">Recent Access Events</h3>
+                    {vault.accessControlEvents.length ? (
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Event</TableHead>
+                              <TableHead>Role</TableHead>
+                              <TableHead>Account / Sender</TableHead>
+                              <TableHead>Time</TableHead>
+                              <TableHead>Tx</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {vault.accessControlEvents.map((event) => (
+                              <TableRow key={event.id}>
+                                <TableCell>
+                                  <Badge variant="outline">{formatAccessEventType(event.type)}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="min-w-44">
+                                    <div className="text-sm font-medium">{formatRoleName(event.roleName, event.role)}</div>
+                                    <ExplorerChip value={event.role} />
+                                    {event.previousAdminRole || event.newAdminRole ? (
+                                      <div className="mt-1 text-xs text-muted-foreground">
+                                        {formatRoleName(event.previousAdminRoleName, event.previousAdminRole)} {"->"}{" "}
+                                        {formatRoleName(event.newAdminRoleName, event.newAdminRole)}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <div className="space-y-1">
+                                    <ExplorerChip value={event.account} />
+                                    {event.sender ? (
+                                      <div className="text-xs text-muted-foreground">
+                                        Sender <ExplorerChip value={event.sender} />
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{formatDate(event.blockTimestamp)}</TableCell>
+                                <TableCell>
+                                  <ExplorerChip entity="tx" value={event.transactionHash} />
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No access-control events indexed for this vault.</p>
+                    )}
+                  </section>
                 </div>
               </TabsContent>
 
@@ -1841,9 +2104,9 @@ export default function VaultDetailPage() {
                                   </AlertDescription>
                                 </Alert>
                                 <AuthGuard>
-                                  <Button className="w-full" type="submit">
+                                  <Button className="w-full" disabled={isReturningStrategy} type="submit">
                                     <ArrowDownLeft />
-                                    Prepare Return
+                                    {isReturningStrategy ? "Returning..." : "Prepare Return"}
                                   </Button>
                                 </AuthGuard>
                               </div>

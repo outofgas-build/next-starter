@@ -98,6 +98,20 @@ type RedeemEpochContract = {
   status: number;
 };
 
+type FeeManagerData = [
+  vault: Address,
+  feeRecipient: Address,
+  protocolFeeRecipient: Address,
+  depositFeeRate: bigint,
+  redeemFeeRate: bigint,
+  performanceFeeRate: bigint,
+  protocolFeeRate: bigint,
+  managementFeeRate: bigint,
+  lastManagementFeeAccruedAt: bigint,
+  highWaterMarkAssetsPerShare: bigint,
+  feesInitialized: boolean
+];
+
 function formatRedeemEpochStatus(status: number) {
   if (status === 1) return "Closed";
   if (status === 2) return "Settled";
@@ -178,31 +192,70 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
   });
   const hasStrategyManager = strategyManager.toLowerCase() !== zeroAddress;
   const hasFeeManager = feeManager.toLowerCase() !== zeroAddress;
-  const [redeemEpoch, vaultIdleBalance, assetDecimals] = await publicClient.multicall({
-    allowFailure: false,
-    contracts: [
-      { ...vaultContract, functionName: "redeemEpoch", args: [currentRedeemEpochId] },
-      {
-        address: asset,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: [vaultAddress]
-      },
-      {
-        address: asset,
-        abi: erc20Abi,
-        functionName: "decimals"
-      }
-    ]
-  });
   const previousRedeemEpochId = currentRedeemEpochId > BigInt(1) ? currentRedeemEpochId - BigInt(1) : null;
+
+  const secondaryContracts: Parameters<typeof publicClient.multicall>[0]["contracts"] = [
+    { ...vaultContract, functionName: "redeemEpoch", args: [currentRedeemEpochId] }
+  ];
+
+  if (previousRedeemEpochId) {
+    secondaryContracts.push({ ...vaultContract, functionName: "redeemEpoch", args: [previousRedeemEpochId] });
+  }
+
+  secondaryContracts.push(
+    {
+      address: asset,
+      abi: erc20Abi,
+      functionName: "balanceOf",
+      args: [vaultAddress]
+    },
+    {
+      address: asset,
+      abi: erc20Abi,
+      functionName: "decimals"
+    }
+  );
+
+  if (hasStrategyManager) {
+    secondaryContracts.push({
+      address: strategyManager,
+      abi: strategyManagerAbi,
+      functionName: "totalStrategyDebt"
+    });
+  }
+
+  if (hasFeeManager) {
+    secondaryContracts.push(
+      { address: feeManager, abi: feeManagerAbi, functionName: "vault" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "feeRecipient" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRecipient" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "depositFeeRate" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "redeemFeeRate" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "performanceFeeRate" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRate" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "managementFeeRate" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "lastManagementFeeAccruedAt" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "highWaterMarkAssetsPerShare" },
+      { address: feeManager, abi: feeManagerAbi, functionName: "feesInitialized" }
+    );
+  }
+
+  const secondaryResults = await publicClient.multicall({
+    allowFailure: false,
+    contracts: secondaryContracts
+  });
+  let secondaryResultIndex = 0;
+  const redeemEpoch = secondaryResults[secondaryResultIndex++] as RedeemEpochContract;
   const previousRedeemEpoch = previousRedeemEpochId
-    ? await publicClient.readContract({
-        ...vaultContract,
-        functionName: "redeemEpoch",
-        args: [previousRedeemEpochId]
-      })
+    ? (secondaryResults[secondaryResultIndex++] as RedeemEpochContract)
     : null;
+  const vaultIdleBalance = secondaryResults[secondaryResultIndex++] as bigint;
+  const assetDecimals = secondaryResults[secondaryResultIndex++] as number;
+  const strategyDebt = hasStrategyManager ? (secondaryResults[secondaryResultIndex++] as bigint) : BigInt(0);
+  const feeManagerData = hasFeeManager
+    ? (secondaryResults.slice(secondaryResultIndex, secondaryResultIndex + 11) as FeeManagerData)
+    : null;
+
   const currentRedeemEpochSnapshot = serializeRedeemEpoch(currentRedeemEpochId, redeemEpoch);
   const lastRedeemEpochSnapshot = previousRedeemEpochId && previousRedeemEpoch
     ? serializeRedeemEpoch(previousRedeemEpochId, previousRedeemEpoch)
@@ -217,36 +270,6 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     trustedAssetsPerShare,
     assetDecimals
   );
-  const [strategyDebt = BigInt(0)] = hasStrategyManager
-    ? await publicClient.multicall({
-        allowFailure: false,
-        contracts: [
-          {
-            address: strategyManager,
-            abi: strategyManagerAbi,
-            functionName: "totalStrategyDebt"
-          }
-        ]
-      })
-    : [BigInt(0)];
-  const feeManagerData = hasFeeManager
-    ? await publicClient.multicall({
-        allowFailure: false,
-        contracts: [
-          { address: feeManager, abi: feeManagerAbi, functionName: "vault" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "feeRecipient" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRecipient" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "depositFeeRate" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "redeemFeeRate" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "performanceFeeRate" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRate" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "managementFeeRate" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "lastManagementFeeAccruedAt" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "highWaterMarkAssetsPerShare" },
-          { address: feeManager, abi: feeManagerAbi, functionName: "feesInitialized" }
-        ]
-      })
-    : null;
 
   return {
     totalAssets: totalAssets.toString(),

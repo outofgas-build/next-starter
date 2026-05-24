@@ -1,14 +1,17 @@
 import type { CodegenConfig } from "@graphql-codegen/cli";
+import { subgraphUrl } from "./config/subgraph";
 
 const config: CodegenConfig = {
   overwrite: true,
-  schema:
-    "https://api.goldsky.com/api/public/project_cma5n10r0vrqg01tv8ajb6gsc/subgraphs/venzo-subgraph/0.0.6/gn",
+  schema: subgraphUrl,
   documents: ["graphql/queries/**/*.ts"],
   ignoreNoDocuments: true,
   generates: {
     "graphql/generated/": {
-      preset: "client"
+      preset: "client",
+      config: {
+        onlyOperationTypes: true
+      }
     },
     "./graphql.schema.json": {
       plugins: ["introspection"]
