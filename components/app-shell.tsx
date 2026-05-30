@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { Wallet } from "lucide-react";
+import { Bell, Wallet } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeSwitcher } from "@/components/theme-switcher";
@@ -14,11 +14,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
-        <div className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/90 p-3 backdrop-blur">
+      <SidebarInset className="min-w-0">
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-border/70 bg-background/75 p-3 backdrop-blur-xl">
           <SidebarTrigger />
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={login}>
+            <Button className="size-9 rounded-lg" size="icon" variant="outline" aria-label="Notifications">
+              <Bell className="size-4" />
+            </Button>
+            <Button className="rounded-lg" size="sm" variant="outline" onClick={login}>
               <Wallet />
               {authenticated ? "Connected" : "Connect"}
             </Button>

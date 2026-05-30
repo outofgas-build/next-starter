@@ -1,20 +1,22 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Copy, FileText, LockKeyhole, Plus } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, CheckCircle2, FileText, LockKeyhole, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
 import type { ColumnDef } from "@tanstack/react-table";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, FormEvent, ReactNode, useContext, useState } from "react";
 import { toast } from "sonner";
-import { createPublicClient, createWalletClient, custom, erc20Abi, http, isAddress, type Address, type Hex } from "viem";
+import { createPublicClient, createWalletClient, custom, erc20Abi, http, isAddress, parseUnits, type Address, type Hex } from "viem";
 import { AuthGuard } from "@/components/auth-guard";
 import { DataTable } from "@/components/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CopyButton } from "@/components/ui/copy-button";
 import { PageContainer } from "@/components/page-container";
+import { VaultAssetBackdrop, VaultIcon, VaultSymbolTag } from "@/components/vault-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -51,11 +53,6 @@ function getExplorerUrl(value: string, entity: ExplorerEntity, explorerUrl: stri
   return `${explorerUrl.replace(/\/$/, "")}/${entity}/${value}`;
 }
 
-function copyText(label: string, value: string) {
-  void navigator.clipboard.writeText(value);
-  toast.success(`${label} copied`);
-}
-
 function formatFeeRate(value?: string | number | null) {
   if (value === undefined || value === null) return "--";
   const numericValue = Number(value);
@@ -87,6 +84,17 @@ function getFlowStatusBadgeClass(isPaused?: boolean | null) {
   return isPaused
     ? "border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-300"
     : "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+}
+
+function parseFormattedAssetUnits(value: string, decimals: number) {
+  const normalizedValue = value.trim().replace(/,/g, "");
+  if (!/^(?:\d+|\d*\.\d+)$/.test(normalizedValue)) return null;
+
+  try {
+    return parseUnits(normalizedValue, decimals);
+  } catch {
+    return null;
+  }
 }
 
 function formatRoleName(name?: string | null, role?: string | null) {
@@ -126,16 +134,16 @@ function ExplorerChip({
       >
         <span className="whitespace-nowrap">{displayValue}</span>
       </a>
-      <Button
+      <CopyButton
         className="size-6 shrink-0"
+        copiedLabel={`${entity === "tx" ? "Transaction hash" : "Address"} copied`}
+        copyLabel={`Copy ${entity}`}
+        value={value}
         size="icon"
         title={`Copy ${entity}`}
-        type="button"
         variant="ghost"
-        onClick={() => copyText(entity === "tx" ? "Transaction hash" : "Address", value)}
-      >
-        <Copy className="size-3.5" />
-      </Button>
+        onCopied={() => toast.success(`${entity === "tx" ? "Transaction hash" : "Address"} copied`)}
+      />
     </span>
   );
 }
@@ -198,8 +206,8 @@ function MetricPanel({
   return (
     <div
       className={cn(
-        "min-w-0 border-b p-5 md:border-b-0 md:border-r md:last:border-r-0",
-        featured && "bg-primary text-primary-foreground"
+        "min-w-0 border-b border-border/70 p-5 md:border-b-0 md:border-r md:last:border-r-0",
+        featured && "bg-[linear-gradient(135deg,rgba(57,152,255,0.28),rgba(16,185,129,0.14))] text-primary-foreground"
       )}
     >
       <p className={cn("text-sm", featured ? "text-primary-foreground/75" : "text-muted-foreground")}>{label}</p>
@@ -221,7 +229,7 @@ function AccountingMetric({
   status?: ReactNode;
 }) {
   return (
-    <div className="min-w-0 rounded-lg border bg-background p-4">
+    <div className="min-w-0 rounded-lg border border-border/80 bg-surface p-4">
       <p className="text-sm text-muted-foreground">{label}</p>
       <div className="mt-2 flex min-w-0 items-start justify-between gap-3">
         <p className="min-w-0 break-words text-2xl font-semibold tracking-normal">{value}</p>
@@ -374,13 +382,12 @@ export default function VaultDetailPage() {
       return;
     }
 
-    let assets: bigint;
-    try {
-      assets = BigInt(allocateAssets.trim());
-    } catch {
-      toast.error("Enter assets as raw integer units.");
+    const parsedAssets = parseFormattedAssetUnits(allocateAssets, assetDecimals);
+    if (parsedAssets === null) {
+      toast.error(`Enter assets as a ${assetSymbol} amount.`);
       return;
     }
+    const assets = parsedAssets;
 
     if (assets <= BigInt(0)) {
       toast.error("Assets must be greater than zero.");
@@ -447,13 +454,12 @@ export default function VaultDetailPage() {
       return;
     }
 
-    let assets: bigint;
-    try {
-      assets = BigInt(returnAssets.trim());
-    } catch {
-      toast.error("Enter assets as raw integer units.");
+    const parsedAssets = parseFormattedAssetUnits(returnAssets, assetDecimals);
+    if (parsedAssets === null) {
+      toast.error(`Enter assets as a ${assetSymbol} amount.`);
       return;
     }
+    const assets = parsedAssets;
 
     if (assets <= BigInt(0)) {
       toast.error("Assets must be greater than zero.");
@@ -1041,48 +1047,54 @@ export default function VaultDetailPage() {
 
   return (
     <ExplorerUrlContext.Provider value={vaultConfig.explorerUrl}>
-      <PageContainer>
-      <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b p-6">
-          <div className="min-w-0">
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="break-words text-3xl font-semibold tracking-normal">{vault.name}</h1>
-                <Badge variant={vault.active ? "default" : "secondary"}>{vault.active ? "Active" : "Inactive"}</Badge>
-                <Badge variant="outline">{vaultTypeName}</Badge>
+      <>
+      <section className="relative overflow-hidden border-b border-border/80 bg-[#020713] text-white shadow-[0_24px_80px_rgba(0,0,0,0.22)]">
+        <VaultAssetBackdrop symbol={assetSymbol} />
+        <div className="container relative mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+          <div className="flex flex-wrap items-start justify-between gap-4 pb-8 sm:pb-10">
+            <div className="flex min-w-0 items-start gap-4">
+              <VaultIcon symbol={vault.symbol} name={vault.name} className="size-14" />
+              <div className="min-w-0 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="break-words text-3xl font-semibold tracking-normal text-white sm:text-4xl">{vault.name}</h1>
+                  <Badge variant={vault.active ? "default" : "secondary"}>{vault.active ? "Active" : "Inactive"}</Badge>
+                  <Badge variant="outline" className="border-white/15 bg-white/5 text-white/85">{vaultTypeName}</Badge>
+                  <VaultSymbolTag symbol={vault.symbol} />
+                </div>
+                <ExplorerChip value={vault.address} />
               </div>
-              <ExplorerChip value={vault.address} />
             </div>
           </div>
-        </div>
-        <div className="grid md:grid-cols-4">
-          <MetricPanel
-            featured
-            label="TVL"
-            value={`${formatTokenAmount(liveTvl, assetDecimals)} ${assetSymbol}`}
-            detail="Live totalAssets()"
-          />
-          <MetricPanel
-            label="Share Price"
-            value={formatSharePrice(vaultContract?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
-              totalAssets: liveTvl,
-              totalSupply: liveTotalSupply
-            })}
-            detail={`Report #${vaultContract?.cachedActiveNav.reportId ?? vault.valuationOracle.latestReportId}`}
-          />
-          <MetricPanel
-            label="Total Supply"
-            value={`${formatTokenAmount(liveTotalSupply, 18)} ${vault.symbol}`}
-            detail="Outstanding vault shares"
-          />
-          <MetricPanel
-            label="Net Flow"
-            value={`${formatTokenAmount(vault.netFlowAssets, assetDecimals)} ${assetSymbol}`}
-            detail="Deposits minus withdrawals"
-          />
+          <div className="relative grid overflow-hidden rounded-lg border border-white/10 bg-[#07101d]/80 shadow-[0_18px_60px_rgba(0,0,0,0.22)] backdrop-blur md:grid-cols-4">
+            <MetricPanel
+              featured
+              label="TVL"
+              value={`${formatTokenAmount(liveTvl, assetDecimals)} ${assetSymbol}`}
+              detail="Live totalAssets()"
+            />
+            <MetricPanel
+              label="Share Price"
+              value={formatSharePrice(vaultContract?.trustedAssetsPerShare ?? vault.latestSharePrice, assetDecimals, {
+                totalAssets: liveTvl,
+                totalSupply: liveTotalSupply
+              })}
+              detail={`Report #${vaultContract?.cachedActiveNav.reportId ?? vault.valuationOracle.latestReportId}`}
+            />
+            <MetricPanel
+              label="Total Supply"
+              value={`${formatTokenAmount(liveTotalSupply, 18)} ${vault.symbol}`}
+              detail="Outstanding vault shares"
+            />
+            <MetricPanel
+              label="Net Flow"
+              value={`${formatTokenAmount(vault.netFlowAssets, assetDecimals)} ${assetSymbol}`}
+              detail="Deposits minus withdrawals"
+            />
+          </div>
         </div>
       </section>
 
+      <PageContainer className="min-h-0">
       <section className="min-w-0 space-y-6">
           <section className="min-w-0">
             <Tabs defaultValue="overview">
@@ -2139,8 +2151,8 @@ export default function VaultDetailPage() {
                                   <Label htmlFor="allocate-assets">Assets</Label>
                                   <Input
                                     id="allocate-assets"
-                                    inputMode="numeric"
-                                    placeholder={`Raw ${assetSymbol} units`}
+                                    inputMode="decimal"
+                                    placeholder={`0.00 ${assetSymbol}`}
                                     value={allocateAssets}
                                     onChange={(event) => setAllocateAssets(event.target.value)}
                                   />
@@ -2182,8 +2194,8 @@ export default function VaultDetailPage() {
                                   <Label htmlFor="return-assets">Assets</Label>
                                   <Input
                                     id="return-assets"
-                                    inputMode="numeric"
-                                    placeholder={`Raw ${assetSymbol} units`}
+                                    inputMode="decimal"
+                                    placeholder={`0.00 ${assetSymbol}`}
                                     value={returnAssets}
                                     onChange={(event) => setReturnAssets(event.target.value)}
                                   />
@@ -2352,6 +2364,7 @@ export default function VaultDetailPage() {
           </section>
       </section>
       </PageContainer>
+      </>
     </ExplorerUrlContext.Provider>
   );
 }

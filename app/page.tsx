@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/data-table";
 import { PageContainer } from "@/components/page-container";
+import { VaultIcon, VaultSymbolTag } from "@/components/vault-icon";
 import { VAULT_CONFIGS, type ConfiguredVaultRow, useVaultsDashboard } from "@/hooks/use-vaults";
 import {
   formatAddress,
@@ -30,15 +31,18 @@ const columns: ColumnDef<VaultRow>[] = [
     accessorKey: "name",
     header: "Vault",
     cell: ({ row }) => (
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="font-medium">{row.original.name}</span>
-          <Badge variant={row.original.active ? "default" : "secondary"}>
-            {row.original.active ? "Active" : "Inactive"}
-          </Badge>
+      <div className="flex min-w-64 items-center gap-3">
+        <VaultIcon symbol={row.original.symbol} name={row.original.name} />
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="truncate font-medium">{row.original.name}</span>
+            <Badge variant={row.original.active ? "default" : "secondary"}>
+              {row.original.active ? "Active" : "Inactive"}
+            </Badge>
+          </div>
+          <div className="font-mono text-xs text-muted-foreground">{formatAddress(row.original.address)}</div>
+          <div className="text-xs text-muted-foreground">{row.original.configuredChain.name}</div>
         </div>
-        <div className="font-mono text-xs text-muted-foreground">{formatAddress(row.original.address)}</div>
-        <div className="text-xs text-muted-foreground">{row.original.configuredChain.name}</div>
       </div>
     )
   },
@@ -46,8 +50,8 @@ const columns: ColumnDef<VaultRow>[] = [
     accessorKey: "symbol",
     header: "Type",
     cell: ({ row }) => (
-      <div>
-        <div>{row.original.symbol}</div>
+      <div className="space-y-1">
+        <VaultSymbolTag symbol={row.original.symbol} />
         <div className="text-xs text-muted-foreground">{row.original.vaultTypeName}</div>
       </div>
     )
@@ -89,7 +93,7 @@ const columns: ColumnDef<VaultRow>[] = [
     id: "actions",
     header: "",
     cell: ({ row }) => (
-      <Button asChild variant="ghost" size="sm">
+      <Button asChild variant="outline" size="sm" className="rounded-md">
         <Link href={`/vaults/${row.original.address}`}>
           Open
           <ArrowUpRight />
@@ -118,11 +122,12 @@ export default function Home() {
 
   return (
     <PageContainer>
-      <Card className="border-border bg-card">
-        <CardHeader>
+      <Card className="relative overflow-hidden border-primary/20 bg-[linear-gradient(135deg,rgba(57,152,255,0.14),rgba(255,255,255,0.04)_42%,rgba(16,185,129,0.09))]">
+        <div className="pointer-events-none absolute -right-24 -top-24 size-80 rounded-full border border-emerald-400/20 bg-emerald-400/10 blur-sm" />
+        <CardHeader className="relative">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="space-y-4">
-              <Image alt="Venzo" height={28} priority src="/logo.webp" width={132} />
+              <Image alt="Venzo" height={28} priority src="/logo.webp" width={132} style={{ height: "auto" }} />
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Earn</span>
@@ -131,40 +136,40 @@ export default function Home() {
                   <span>/</span>
                   <span className="text-foreground">Configured Vaults</span>
                 </div>
-                <CardTitle className="text-3xl">Venzo admin console</CardTitle>
-                <CardDescription>
+                <CardTitle className="text-4xl font-semibold tracking-normal">Venzo admin console</CardTitle>
+                <CardDescription className="max-w-2xl">
                   Monitor configured vaults across chains, including oracle health, settlement state, and strategy
                   accounting.
                 </CardDescription>
               </div>
             </div>
             <CardAction className="flex gap-2">
-              <Button variant="outline" onClick={login}>
+              <Button className="rounded-lg" variant="outline" onClick={login}>
                 <Wallet />
                 {authenticated ? "Connected" : "Connect"}
               </Button>
-              <Button disabled={isFetching} onClick={() => refetch()}>
+              <Button className="rounded-lg" disabled={isFetching} onClick={() => refetch()}>
                 {isFetching ? <Spinner /> : <RefreshCw />}
                 Refresh
               </Button>
             </CardAction>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="relative">
           <div className="grid gap-4 md:grid-cols-4">
-            <div>
+            <div className="rounded-lg border border-white/10 bg-background/35 p-4">
               <p className="text-sm text-muted-foreground">Configured Chains</p>
               <p className="mt-1 text-2xl font-semibold">{configuredChains}</p>
             </div>
-            <div>
+            <div className="rounded-lg border border-white/10 bg-background/35 p-4">
               <p className="text-sm text-muted-foreground">Configured Vaults</p>
               <p className="mt-1 text-2xl font-semibold">{VAULT_CONFIGS.length}</p>
             </div>
-            <div>
+            <div className="rounded-lg border border-white/10 bg-background/35 p-4">
               <p className="text-sm text-muted-foreground">Active Vaults</p>
               <p className="mt-1 text-2xl font-semibold">{activeVaults}</p>
             </div>
-            <div>
+            <div className="rounded-lg border border-white/10 bg-background/35 p-4">
               <p className="text-sm text-muted-foreground">Indexed Block</p>
               <p className="mt-1 text-2xl font-semibold">
                 {data?._meta?.block.number ? formatInteger(data._meta.block.number) : "--"}
@@ -175,7 +180,7 @@ export default function Home() {
       </Card>
 
       <section className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-        <Card className="border-primary/40 bg-primary text-primary-foreground">
+        <Card className="border-primary/30 bg-[linear-gradient(135deg,#0b6fd3,#2386f1)] text-primary-foreground">
           <CardHeader>
             <CardDescription className="text-primary-foreground/75">Total Assets</CardDescription>
             <CardTitle className="text-4xl">
@@ -200,7 +205,7 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-surface">
           <CardHeader>
             <CardDescription>Vault Configuration</CardDescription>
             <CardTitle className="text-base">{VAULT_CONFIGS.length} configured vaults</CardTitle>
@@ -226,7 +231,7 @@ export default function Home() {
         </Card>
       </section>
 
-      <Card>
+      <Card className="bg-surface">
         <CardHeader>
           <CardTitle>Vaults</CardTitle>
           <CardDescription>
@@ -246,7 +251,7 @@ export default function Home() {
               <AlertDescription>{error.message}</AlertDescription>
             </Alert>
           ) : (
-            <DataTable columns={columns} data={vaults} />
+            <DataTable columns={columns} data={vaults} variant="wrapped" />
           )}
         </CardContent>
       </Card>
