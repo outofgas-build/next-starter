@@ -1321,7 +1321,7 @@ export default function VaultDetailPage() {
                 <TabsContent value="epochs">
                   <div className="space-y-6">
                     <div className="space-y-1">
-                      <h2 className="text-lg font-semibold tracking-normal">Epochs / Settlement</h2>
+                      <h2 className="text-lg font-semibold tracking-normal">Epochs</h2>
                     </div>
 
                     <div className={cn("grid gap-4", supportsAsyncDeposits && "xl:grid-cols-2")}>
@@ -1346,24 +1346,12 @@ export default function VaultDetailPage() {
                         </section>
                       ) : null}
 
-                      <section className="overflow-hidden rounded-lg border bg-background">
-                        <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
-                          <div>
-                            <h3 className="text-base font-medium">Redeem Epochs</h3>
-                          </div>
-                          <Badge variant="outline" className={getFlowStatusBadgeClass(vault.redeemsPaused)}>
-                            {vault.redeemsPaused ? "Paused" : "Open"}
-                          </Badge>
-                        </div>
-                        <DataTable
-                          variant="wrapped"
-                          columns={redeemEpochColumns}
-                          data={redeemEpochRows}
-                          emptyText="No live redeem epochs."
-                          className="rounded-none bg-transparent p-0"
-                          headerClassName="bg-muted/20"
-                        />
-                      </section>
+                      <DataTable
+                        variant="wrapped"
+                        columns={redeemEpochColumns}
+                        data={redeemEpochRows}
+                        emptyText="No live redeem epochs."
+                      />
                     </div>
 
                     <Card>
