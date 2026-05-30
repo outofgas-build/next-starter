@@ -14,6 +14,7 @@ import { fetchGraphQL } from "@/lib/graphql-client";
 import { queryKeys } from "@/lib/query-keys";
 
 const zeroAddress = "0x0000000000000000000000000000000000000000";
+export const liveEpochWindowSize = 24;
 
 type RedeemEpochSnapshot = {
   epochId: string;
@@ -21,7 +22,24 @@ type RedeemEpochSnapshot = {
   openedAt: string;
   reportId: string;
   settledAssetsPerShare: string;
+  pricedAt: string;
+  pricedAssets: string;
+  pricedNetShares: string;
   redeemFeeRate: string;
+  protocolFeeRate: string;
+  closedAt: string;
+  settledAt: string;
+  status: "Open" | "Closed" | "Priced" | "Settled";
+  isEmpty: boolean;
+};
+
+type DepositEpochSnapshot = {
+  epochId: string;
+  totalPendingAssets: string;
+  openedAt: string;
+  reportId: string;
+  settledAssetsPerShare: string;
+  entryFeeRate: string;
   protocolFeeRate: string;
   closedAt: string;
   settledAt: string;
@@ -50,9 +68,12 @@ export type VaultContract = {
     reportId: string;
     oracle: string;
   };
+  currentDepositEpochId: string | null;
+  depositEpochs: DepositEpochSnapshot[];
   currentRedeemEpochId: string;
   currentRedeemEpoch: RedeemEpochSnapshot;
   lastRedeemEpoch: RedeemEpochSnapshot | null;
+  redeemEpochs: RedeemEpochSnapshot[];
   latestUnsettledRedeemEpochId: string;
   asset: string;
   strategyManager: string;
@@ -88,8 +109,23 @@ type RedeemEpochContract = {
   openedAt: bigint;
   reportId: bigint;
   settledAssetsPerShare: bigint;
-  redeemFeeRate: number;
-  protocolFeeRate: number;
+  pricedAt: bigint;
+  pricedAssets: bigint;
+  pricedNetShares: bigint;
+  exitFeeRate: number;
+  exitProtocolShareRate: number;
+  closedAt: bigint;
+  settledAt: bigint;
+  status: number;
+};
+
+type DepositEpochContract = {
+  totalPendingAssets: bigint;
+  openedAt: bigint;
+  reportId: bigint;
+  settledAssetsPerShare: bigint;
+  entryFeeRate: number;
+  entryProtocolShareRate: number;
   closedAt: bigint;
   settledAt: bigint;
   status: number;
@@ -146,15 +182,34 @@ function optionalMulticallResult<TResult>(result: MulticallResult<TResult>, fall
   return result.status === "success" ? result.result : fallback;
 }
 
-function formatRedeemEpochStatus(status: number) {
+function latestEpochIds(currentEpochId: bigint, limit = liveEpochWindowSize) {
+  const epochIds: bigint[] = [];
+  let epochId = currentEpochId;
+
+  while (epochId >= BigInt(1) && epochIds.length < limit) {
+    epochIds.push(epochId);
+    epochId -= BigInt(1);
+  }
+
+  return epochIds;
+}
+
+function formatDepositEpochStatus(status: number) {
   if (status === 1) return "Closed";
   if (status === 2) return "Settled";
   return "Open";
 }
 
-function isEmptyRedeemEpoch(epoch: RedeemEpochContract) {
+function formatRedeemEpochStatus(status: number) {
+  if (status === 1) return "Closed";
+  if (status === 2) return "Priced";
+  if (status === 3) return "Settled";
+  return "Open";
+}
+
+function isEmptyDepositEpoch(epoch: DepositEpochContract) {
   return (
-    epoch.totalPendingShares === BigInt(0) &&
+    epoch.totalPendingAssets === BigInt(0) &&
     epoch.openedAt === BigInt(0) &&
     epoch.reportId === BigInt(0) &&
     epoch.settledAssetsPerShare === BigInt(0) &&
@@ -164,6 +219,37 @@ function isEmptyRedeemEpoch(epoch: RedeemEpochContract) {
   );
 }
 
+function isEmptyRedeemEpoch(epoch: RedeemEpochContract) {
+  return (
+    epoch.totalPendingShares === BigInt(0) &&
+    epoch.openedAt === BigInt(0) &&
+    epoch.reportId === BigInt(0) &&
+    epoch.settledAssetsPerShare === BigInt(0) &&
+    epoch.pricedAt === BigInt(0) &&
+    epoch.pricedAssets === BigInt(0) &&
+    epoch.pricedNetShares === BigInt(0) &&
+    epoch.closedAt === BigInt(0) &&
+    epoch.settledAt === BigInt(0) &&
+    epoch.status === 0
+  );
+}
+
+function serializeDepositEpoch(epochId: bigint, epoch: DepositEpochContract): DepositEpochSnapshot {
+  return {
+    epochId: epochId.toString(),
+    totalPendingAssets: epoch.totalPendingAssets.toString(),
+    openedAt: epoch.openedAt.toString(),
+    reportId: epoch.reportId.toString(),
+    settledAssetsPerShare: epoch.settledAssetsPerShare.toString(),
+    entryFeeRate: epoch.entryFeeRate.toString(),
+    protocolFeeRate: epoch.entryProtocolShareRate.toString(),
+    closedAt: epoch.closedAt.toString(),
+    settledAt: epoch.settledAt.toString(),
+    status: formatDepositEpochStatus(epoch.status),
+    isEmpty: isEmptyDepositEpoch(epoch)
+  };
+}
+
 function serializeRedeemEpoch(epochId: bigint, epoch: RedeemEpochContract): RedeemEpochSnapshot {
   return {
     epochId: epochId.toString(),
@@ -171,8 +257,11 @@ function serializeRedeemEpoch(epochId: bigint, epoch: RedeemEpochContract): Rede
     openedAt: epoch.openedAt.toString(),
     reportId: epoch.reportId.toString(),
     settledAssetsPerShare: epoch.settledAssetsPerShare.toString(),
-    redeemFeeRate: epoch.redeemFeeRate.toString(),
-    protocolFeeRate: epoch.protocolFeeRate.toString(),
+    pricedAt: epoch.pricedAt.toString(),
+    pricedAssets: epoch.pricedAssets.toString(),
+    pricedNetShares: epoch.pricedNetShares.toString(),
+    redeemFeeRate: epoch.exitFeeRate.toString(),
+    protocolFeeRate: epoch.exitProtocolShareRate.toString(),
     closedAt: epoch.closedAt.toString(),
     settledAt: epoch.settledAt.toString(),
     status: formatRedeemEpochStatus(epoch.status),
@@ -201,6 +290,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       ? [{ ...vaultContract, functionName: "totalPendingDepositAssets" }]
       : []),
     ...(vaultConfig.vaultType === "fullyAsync" ? [{ ...vaultContract, functionName: "depositEpochDuration" }] : []),
+    ...(vaultConfig.vaultType === "fullyAsync" ? [{ ...vaultContract, functionName: "currentDepositEpochId" }] : []),
     { ...vaultContract, functionName: "redeemEpochDuration" },
     { ...vaultContract, functionName: "totalClaimableRedeemAssets" },
     { ...vaultContract, functionName: "totalClaimableRedeemNetShares" },
@@ -239,6 +329,10 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     vaultConfig.vaultType === "fullyAsync"
       ? requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "depositEpochDuration")
       : BigInt(0);
+  const currentDepositEpochId =
+    vaultConfig.vaultType === "fullyAsync"
+      ? requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "currentDepositEpochId")
+      : null;
   const redeemEpochDuration = requireMulticallResult(
     primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
     "redeemEpochDuration"
@@ -272,13 +366,12 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
   const feeManager = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<Address>, "feeManager");
   const hasStrategyManager = strategyManager.toLowerCase() !== zeroAddress;
   const hasFeeManager = feeManager.toLowerCase() !== zeroAddress;
-  const previousRedeemEpochId = currentRedeemEpochId > BigInt(1) ? currentRedeemEpochId - BigInt(1) : null;
+  const depositEpochIds = currentDepositEpochId ? latestEpochIds(currentDepositEpochId) : [];
+  const redeemEpochIds = latestEpochIds(currentRedeemEpochId);
 
   const secondaryContracts = [
-    { ...vaultContract, functionName: "redeemEpoch", args: [currentRedeemEpochId] },
-    ...(previousRedeemEpochId
-      ? [{ ...vaultContract, functionName: "redeemEpoch", args: [previousRedeemEpochId] }]
-      : []),
+    ...depositEpochIds.map((epochId) => ({ ...vaultContract, functionName: "depositEpoch", args: [epochId] })),
+    ...redeemEpochIds.map((epochId) => ({ ...vaultContract, functionName: "redeemEpoch", args: [epochId] })),
     {
       address: asset,
       abi: erc20Abi,
@@ -324,10 +417,12 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     contracts: secondaryContracts
   });
   let secondaryResultIndex = 0;
-  const redeemEpoch = secondaryResults[secondaryResultIndex++] as RedeemEpochContract;
-  const previousRedeemEpoch = previousRedeemEpochId
-    ? (secondaryResults[secondaryResultIndex++] as RedeemEpochContract)
-    : null;
+  const depositEpochSnapshots = depositEpochIds
+    .map((epochId) => serializeDepositEpoch(epochId, secondaryResults[secondaryResultIndex++] as DepositEpochContract))
+    .filter((epoch) => !epoch.isEmpty);
+  const redeemEpochSnapshots = redeemEpochIds
+    .map((epochId) => serializeRedeemEpoch(epochId, secondaryResults[secondaryResultIndex++] as RedeemEpochContract))
+    .filter((epoch) => !epoch.isEmpty);
   const vaultIdleBalance = secondaryResults[secondaryResultIndex++] as bigint;
   const assetDecimals = secondaryResults[secondaryResultIndex++] as number;
   const strategyDebt = hasStrategyManager ? (secondaryResults[secondaryResultIndex++] as bigint) : BigInt(0);
@@ -335,15 +430,29 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     ? (secondaryResults.slice(secondaryResultIndex, secondaryResultIndex + 14) as FeeManagerData)
     : null;
 
-  const currentRedeemEpochSnapshot = serializeRedeemEpoch(currentRedeemEpochId, redeemEpoch);
-  const lastRedeemEpochSnapshot = previousRedeemEpochId && previousRedeemEpoch
-    ? serializeRedeemEpoch(previousRedeemEpochId, previousRedeemEpoch)
-    : null;
+  const currentRedeemEpochSnapshot =
+    redeemEpochSnapshots.find((epoch) => epoch.epochId === currentRedeemEpochId.toString()) ??
+    serializeRedeemEpoch(currentRedeemEpochId, {
+      totalPendingShares: BigInt(0),
+      openedAt: BigInt(0),
+      reportId: BigInt(0),
+      settledAssetsPerShare: BigInt(0),
+      pricedAt: BigInt(0),
+      pricedAssets: BigInt(0),
+      pricedNetShares: BigInt(0),
+      exitFeeRate: 0,
+      exitProtocolShareRate: 0,
+      closedAt: BigInt(0),
+      settledAt: BigInt(0),
+      status: 0
+    });
+  const lastRedeemEpochSnapshot =
+    redeemEpochSnapshots.find((epoch) => epoch.epochId !== currentRedeemEpochId.toString()) ?? null;
   const latestUnsettledRedeemEpoch =
-    lastRedeemEpochSnapshot && lastRedeemEpochSnapshot.status !== "Settled" && !lastRedeemEpochSnapshot.isEmpty
-      ? lastRedeemEpochSnapshot
-      : currentRedeemEpochSnapshot;
-  const displayPendingRedeemShares = BigInt(latestUnsettledRedeemEpoch.totalPendingShares);
+    redeemEpochSnapshots.find((epoch) => epoch.status !== "Settled") ?? currentRedeemEpochSnapshot;
+  const displayPendingRedeemShares = redeemEpochSnapshots
+    .filter((epoch) => epoch.status !== "Settled")
+    .reduce((total, epoch) => total + BigInt(epoch.totalPendingShares), BigInt(0));
   const estimatedPendingRedeemAssets = estimatePendingRedeemAssets(
     displayPendingRedeemShares,
     trustedAssetsPerShare,
@@ -369,9 +478,12 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       reportId: cachedActiveNav[1].toString(),
       oracle: cachedActiveNav[2]
     },
+    currentDepositEpochId: currentDepositEpochId?.toString() ?? null,
+    depositEpochs: depositEpochSnapshots,
     currentRedeemEpochId: currentRedeemEpochId.toString(),
     currentRedeemEpoch: currentRedeemEpochSnapshot,
     lastRedeemEpoch: lastRedeemEpochSnapshot,
+    redeemEpochs: redeemEpochSnapshots,
     latestUnsettledRedeemEpochId: latestUnsettledRedeemEpoch.epochId,
     asset,
     strategyManager,

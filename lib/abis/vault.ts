@@ -32,6 +32,13 @@ export const vaultAbi = [
   },
   {
     type: "function",
+    name: "priceRedeemEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [{ name: "assets", type: "uint256", internalType: "uint256" }],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
     name: "totalAssets",
     inputs: [],
     outputs: [{ name: "managedAssets", type: "uint256", internalType: "uint256" }],
@@ -70,6 +77,37 @@ export const vaultAbi = [
     name: "depositEpochDuration",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "currentDepositEpochId",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "depositEpoch",
+    inputs: [{ name: "epochId", type: "uint256", internalType: "uint256" }],
+    outputs: [
+      {
+        name: "",
+        type: "tuple",
+        internalType: "struct IDepositEpoch.DepositEpochState",
+        components: [
+          { name: "totalPendingAssets", type: "uint256", internalType: "uint256" },
+          { name: "openedAt", type: "uint256", internalType: "uint256" },
+          { name: "reportId", type: "uint256", internalType: "uint256" },
+          { name: "settledAssetsPerShare", type: "uint256", internalType: "uint256" },
+          { name: "entryFeeRate", type: "uint32", internalType: "uint32" },
+          { name: "entryProtocolShareRate", type: "uint32", internalType: "uint32" },
+          { name: "closedAt", type: "uint256", internalType: "uint256" },
+          { name: "settledAt", type: "uint256", internalType: "uint256" },
+          { name: "status", type: "uint8", internalType: "enum IDepositEpoch.DepositEpochStatus" }
+        ]
+      }
+    ],
     stateMutability: "view"
   },
   {
@@ -133,17 +171,20 @@ export const vaultAbi = [
       {
         name: "",
         type: "tuple",
-        internalType: "struct ISettlementModule.RedeemEpoch",
+        internalType: "struct IRedeemEpoch.RedeemEpochState",
         components: [
           { name: "totalPendingShares", type: "uint256", internalType: "uint256" },
           { name: "openedAt", type: "uint256", internalType: "uint256" },
           { name: "reportId", type: "uint256", internalType: "uint256" },
           { name: "settledAssetsPerShare", type: "uint256", internalType: "uint256" },
-          { name: "redeemFeeRate", type: "uint32", internalType: "uint32" },
-          { name: "protocolFeeRate", type: "uint32", internalType: "uint32" },
+          { name: "pricedAt", type: "uint256", internalType: "uint256" },
+          { name: "pricedAssets", type: "uint256", internalType: "uint256" },
+          { name: "pricedNetShares", type: "uint256", internalType: "uint256" },
+          { name: "exitFeeRate", type: "uint32", internalType: "uint32" },
+          { name: "exitProtocolShareRate", type: "uint32", internalType: "uint32" },
           { name: "closedAt", type: "uint256", internalType: "uint256" },
           { name: "settledAt", type: "uint256", internalType: "uint256" },
-          { name: "status", type: "uint8", internalType: "enum ISettlementModule.RedeemEpochStatus" }
+          { name: "status", type: "uint8", internalType: "enum IRedeemEpoch.RedeemEpochStatus" }
         ]
       }
     ],

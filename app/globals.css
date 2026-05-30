@@ -127,4 +127,9 @@
   button {
     @apply cursor-pointer;
   }
+
+  .data-table-scroll [data-slot="table-container"] {
+    overflow-x: visible !important;
+    overflow-y: visible !important;
+  }
 }

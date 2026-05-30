@@ -3,11 +3,13 @@
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Copy, FileText, LockKeyhole, Plus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
+import type { ColumnDef } from "@tanstack/react-table";
 import { useQueryClient } from "@tanstack/react-query";
 import { createContext, FormEvent, ReactNode, useContext, useState } from "react";
 import { toast } from "sonner";
 import { createPublicClient, createWalletClient, custom, erc20Abi, http, isAddress, type Address, type Hex } from "viem";
 import { AuthGuard } from "@/components/auth-guard";
+import { DataTable } from "@/components/data-table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,7 +21,13 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useVaultConfig, useVaultDetail, useVaultContract, type VaultContract } from "@/hooks/use-vaults";
+import {
+  useVaultConfig,
+  useVaultDetail,
+  useVaultContract,
+  type VaultContract
+} from "@/hooks/use-vaults";
+import type { VaultDetailQuery } from "@/graphql/generated/graphql";
 import { reportOracleAbi, strategyManagerAbi, vaultAbi } from "@/lib/abis";
 import { formatAddress, formatBps, formatDate, formatInteger, formatSharePrice, formatTokenAmount } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
@@ -27,6 +35,12 @@ import { cn } from "@/lib/utils";
 
 type OperationType = "deposit" | "redeem";
 type ExplorerEntity = "address" | "tx";
+type DepositEpochRow = VaultContract["depositEpochs"][number] & {
+  settledEpoch?: VaultDetailQuery["depositEpoches"][number];
+};
+type RedeemEpochRow = VaultContract["redeemEpochs"][number] & {
+  settledEpoch?: VaultDetailQuery["redeemEpoches"][number];
+};
 
 const defaultBlockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
 const bytes32Pattern = /^0x[0-9a-fA-F]{64}$/;
@@ -58,6 +72,21 @@ function formatVaultTypeName(value: string) {
   }
 
   return value;
+}
+
+function getEpochStatusBadgeClass(status: string) {
+  if (status === "Open") return "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
+  if (status === "Closed") return "border-amber-500/30 bg-amber-500/15 text-amber-700 dark:text-amber-300";
+  if (status === "Priced") return "border-sky-500/30 bg-sky-500/15 text-sky-700 dark:text-sky-300";
+  if (status === "Settled") return "border-zinc-500/30 bg-zinc-500/15 text-zinc-700 dark:text-zinc-300";
+
+  return "border-border text-foreground";
+}
+
+function getFlowStatusBadgeClass(isPaused?: boolean | null) {
+  return isPaused
+    ? "border-red-500/30 bg-red-500/15 text-red-700 dark:text-red-300"
+    : "border-emerald-500/30 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300";
 }
 
 function formatRoleName(name?: string | null, role?: string | null) {
@@ -788,13 +817,10 @@ export default function VaultDetailPage() {
     feeRecipient: feeManager?.feeRecipient ?? vault.feeRecipient,
     protocolFeeRecipient: feeManager?.protocolFeeRecipient ?? vault.protocolFeeRecipient
   };
-  const latestDepositEpoch = data.depositEpoches[0];
+  const depositEpochCards = vaultContract?.depositEpochs ?? [];
   const latestUnsettledRedeemEpochId =
     vaultContract?.latestUnsettledRedeemEpochId ?? vaultContract?.currentRedeemEpochId;
-  const redeemEpochCards = [
-    { label: "Current", epoch: vaultContract?.currentRedeemEpoch ?? null },
-    { label: "Last", epoch: vaultContract?.lastRedeemEpoch ?? null }
-  ];
+  const redeemEpochCards = vaultContract?.redeemEpochs ?? [];
   const latestReport = data.valuationReports[0];
   const latestReportTimestamp = latestReport ? Number(latestReport.submittedAt) : Number(vault.valuationOracle.updatedAtTimestamp);
   const maxReportAge = Number(vault.valuationOracle.maxReportAge);
@@ -810,14 +836,6 @@ export default function VaultDetailPage() {
     if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`;
     return `${Math.floor(seconds / 86400)}d`;
   };
-  const formatDurationDays = (value?: string | number | null) => {
-    if (value === undefined || value === null) return "--";
-
-    const days = Number(value) / 86_400;
-    if (!Number.isFinite(days)) return String(value);
-
-    return `${new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(days)} days`;
-  };
   const formatRedeemEpochValue = (shares?: string, price?: string) => {
     if (!shares || !price) return "--";
 
@@ -832,10 +850,194 @@ export default function VaultDetailPage() {
 
     return formatAssetAmount(estimatedAssets.toString());
   };
-  const getRedeemEpochPrice = (epoch: NonNullable<VaultContract["lastRedeemEpoch"]>) =>
+  const getRedeemEpochPrice = (epoch: VaultContract["redeemEpochs"][number]) =>
     epoch.settledAssetsPerShare !== "0" ? epoch.settledAssetsPerShare : vaultContract?.trustedAssetsPerShare;
+  const getRedeemEpochValue = (epoch: VaultContract["redeemEpochs"][number], price?: string) => {
+    if (epoch.pricedAssets !== "0") return formatAssetAmount(epoch.pricedAssets);
+    return formatRedeemEpochValue(epoch.totalPendingShares, price);
+  };
   const getSettledRedeemEpoch = (epochId?: string) =>
     epochId ? data.redeemEpoches.find((epoch) => String(epoch.epochId) === epochId) : undefined;
+  const depositEpochRows: DepositEpochRow[] = depositEpochCards.map((epoch) => ({
+    ...epoch,
+    settledEpoch: data.depositEpoches.find((settled) => String(settled.epochId) === epoch.epochId)
+  }));
+  const redeemEpochRows: RedeemEpochRow[] = redeemEpochCards.map((epoch) => ({
+    ...epoch,
+    settledEpoch: getSettledRedeemEpoch(epoch.epochId)
+  }));
+  const depositEpochColumns: ColumnDef<DepositEpochRow>[] = [
+    {
+      accessorKey: "epochId",
+      header: "Epoch",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">#{row.original.epochId}</div>
+          <Badge variant="outline" className={getEpochStatusBadgeClass(row.original.status)}>
+            {row.original.status}
+          </Badge>
+        </div>
+      )
+    },
+    {
+      accessorKey: "totalPendingAssets",
+      header: "Amount",
+      cell: ({ row }) => {
+        const assets =
+          row.original.settledEpoch && row.original.status === "Settled"
+            ? row.original.settledEpoch.assets
+            : row.original.totalPendingAssets;
+
+        return (
+          <div className="space-y-1">
+            <div>{formatAssetAmount(assets)}</div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.status === "Settled" ? "settled assets" : "pending assets"}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      id: "minted",
+      header: "Minted",
+      cell: ({ row }) =>
+        row.original.settledEpoch ? `${formatTokenAmount(row.original.settledEpoch.shares, 18)} ${vault.symbol}` : "--"
+    },
+    {
+      id: "priceReport",
+      header: "Price / Report",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div>
+            {row.original.settledAssetsPerShare !== "0"
+              ? formatSharePrice(row.original.settledAssetsPerShare, assetDecimals, { scale: "oracle" })
+              : "--"}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.reportId !== "0" ? `Report #${row.original.reportId}` : "No report"}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: "fees",
+      header: "Fees",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div>Entry {formatFeeRate(row.original.entryFeeRate)}</div>
+          <div className="text-xs text-muted-foreground">Protocol {formatFeeRate(row.original.protocolFeeRate)}</div>
+        </div>
+      )
+    },
+    {
+      id: "dates",
+      header: "Dates",
+      cell: ({ row }) => (
+        <div className="space-y-1 text-xs">
+          <div>Open {row.original.openedAt !== "0" ? formatDate(row.original.openedAt) : "--"}</div>
+          <div className="text-muted-foreground">
+            Close {row.original.closedAt !== "0" ? formatDate(row.original.closedAt) : "--"}
+          </div>
+          <div className="text-muted-foreground">
+            Settle {row.original.settledAt !== "0" ? formatDate(row.original.settledAt) : "--"}
+          </div>
+        </div>
+      )
+    }
+  ];
+  const redeemEpochColumns: ColumnDef<RedeemEpochRow>[] = [
+    {
+      accessorKey: "epochId",
+      header: "Epoch",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div className="font-medium">#{row.original.epochId}</div>
+          <Badge variant="outline" className={getEpochStatusBadgeClass(row.original.status)}>
+            {row.original.status}
+          </Badge>
+        </div>
+      )
+    },
+    {
+      accessorKey: "totalPendingShares",
+      header: "Shares",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div>
+            {formatTokenAmount(row.original.totalPendingShares, 18)} {vault.symbol}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.status === "Open" ? "pending shares" : "shares"}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: "value",
+      header: "Value",
+      cell: ({ row }) => {
+        const price = getRedeemEpochPrice(row.original);
+
+        return (
+          <div className="space-y-1">
+            <div>{getRedeemEpochValue(row.original, price)}</div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.status === "Priced" || row.original.status === "Settled"
+                ? "redeemed value"
+                : "estimated value"}
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      id: "priceReport",
+      header: "Price / Report",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div>
+            {row.original.settledEpoch
+              ? formatSharePrice(row.original.settledEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
+              : row.original.settledAssetsPerShare !== "0"
+                ? formatSharePrice(row.original.settledAssetsPerShare, assetDecimals, { scale: "oracle" })
+                : "--"}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {row.original.reportId !== "0" ? `Report #${row.original.reportId}` : "No report"}
+          </div>
+        </div>
+      )
+    },
+    {
+      id: "fees",
+      header: "Fees",
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <div>Redeem {formatFeeRate(row.original.redeemFeeRate)}</div>
+          <div className="text-xs text-muted-foreground">Protocol {formatFeeRate(row.original.protocolFeeRate)}</div>
+        </div>
+      )
+    },
+    {
+      id: "dates",
+      header: "Dates",
+      cell: ({ row }) => (
+        <div className="space-y-1 text-xs">
+          <div>Open {row.original.openedAt !== "0" ? formatDate(row.original.openedAt) : "--"}</div>
+          <div className="text-muted-foreground">
+            Close {row.original.closedAt !== "0" ? formatDate(row.original.closedAt) : "--"}
+          </div>
+          <div className="text-muted-foreground">
+            Price {row.original.pricedAt !== "0" ? formatDate(row.original.pricedAt) : "--"}
+          </div>
+          <div className="text-muted-foreground">
+            Settle {row.original.settledAt !== "0" ? formatDate(row.original.settledAt) : "--"}
+          </div>
+        </div>
+      )
+    }
+  ];
 
   return (
     <ExplorerUrlContext.Provider value={vaultConfig.explorerUrl}>
@@ -1022,178 +1224,49 @@ export default function VaultDetailPage() {
                 <div className="space-y-6">
                   <div className="space-y-1">
                     <h2 className="text-lg font-semibold tracking-normal">Epochs / Settlement</h2>
-                    <p className="text-sm text-muted-foreground">
-                      Current deposit and redeem flow state, recent settlements, and claim readiness signals.
-                    </p>
                   </div>
 
                   <div className={cn("grid gap-4", supportsAsyncDeposits && "xl:grid-cols-2")}>
                     {supportsAsyncDeposits ? (
-                      <section className="rounded-lg border bg-background p-4">
-                        <div className="mb-4 flex items-center justify-between gap-3">
-                          <h3 className="text-base font-medium">Deposit Side</h3>
-                          <Badge variant={vault.depositsPaused ? "destructive" : "default"}>
+                      <section className="overflow-hidden rounded-lg border bg-background">
+                        <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
+                          <div>
+                            <h3 className="text-base font-medium">Deposit Epochs</h3>
+                          </div>
+                          <Badge variant="outline" className={getFlowStatusBadgeClass(vault.depositsPaused)}>
                             {vault.depositsPaused ? "Paused" : "Open"}
                           </Badge>
                         </div>
-                        <InfoPairs
-                          items={[
-                            {
-                              label: "Pending Assets",
-                              value: formatAssetAmount(vaultContract?.totalPendingDepositAssets)
-                            },
-                            {
-                              label: "Epoch Duration",
-                              value: formatDurationDays(vaultContract?.depositEpochDuration)
-                            },
-                            {
-                              label: "Latest Settled Epoch",
-                              value: latestDepositEpoch ? `#${latestDepositEpoch.epochId}` : "--",
-                              detail: latestDepositEpoch
-                                ? `Settled ${formatDate(latestDepositEpoch.blockTimestamp)}`
-                                : undefined
-                            },
-                            {
-                              label: "Settled Assets",
-                              value: latestDepositEpoch ? formatAssetAmount(latestDepositEpoch.assets) : "--"
-                            },
-                            {
-                              label: "Shares Minted",
-                              value: latestDepositEpoch
-                                ? `${formatTokenAmount(latestDepositEpoch.shares, 18)} ${vault.symbol}`
-                                : "--"
-                            },
-                            {
-                              label: "Settlement Price",
-                              value: latestDepositEpoch
-                                ? formatSharePrice(latestDepositEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
-                                : "--"
-                            },
-                            { label: "Entry Fee", value: formatFeeRate(feeValues.entryFeeRate) },
-                            { label: "Entry Protocol Share", value: formatFeeRate(feeValues.entryProtocolShareRate) }
-                          ]}
+                        <DataTable
+                          variant="wrapped"
+                          columns={depositEpochColumns}
+                          data={depositEpochRows}
+                          emptyText="No live deposit epochs."
+                          className="rounded-none bg-transparent p-0"
+                          headerClassName="bg-muted/20"
                         />
                       </section>
                     ) : null}
 
-                    <section className="rounded-lg border bg-background p-4">
-                      <div className="mb-4 flex items-center justify-between gap-3">
-                        <h3 className="text-base font-medium">Redeem Side</h3>
-                        <Badge variant={vault.redeemsPaused ? "destructive" : "default"}>
+                    <section className="overflow-hidden rounded-lg border bg-background">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b p-4">
+                        <div>
+                          <h3 className="text-base font-medium">Redeem Epochs</h3>
+                        </div>
+                        <Badge variant="outline" className={getFlowStatusBadgeClass(vault.redeemsPaused)}>
                           {vault.redeemsPaused ? "Paused" : "Open"}
                         </Badge>
                       </div>
-                        <InfoPairs
-                          items={[
-                          {
-                            label: "Epoch Duration",
-                            value: formatDurationDays(vaultContract?.redeemEpochDuration)
-                          },
-                          {
-                            label: "Claimable Reserve",
-                            value: formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)
-                          },
-                          { label: "Exit Fee", value: formatFeeRate(feeValues.exitFeeRate) },
-                          { label: "Exit Protocol Share", value: formatFeeRate(feeValues.exitProtocolShareRate) }
-                        ]}
+                      <DataTable
+                        variant="wrapped"
+                        columns={redeemEpochColumns}
+                        data={redeemEpochRows}
+                        emptyText="No live redeem epochs."
+                        className="rounded-none bg-transparent p-0"
+                        headerClassName="bg-muted/20"
                       />
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
-                        {redeemEpochCards.map(({ label, epoch }) => {
-                          const price = epoch ? getRedeemEpochPrice(epoch) : undefined;
-                          const settledEpoch = getSettledRedeemEpoch(epoch?.epochId);
-                          const shareLabel = epoch?.status === "Open" ? "Pending Shares" : "Shares";
-
-                          return (
-                            <div className="rounded-md border p-4" key={label}>
-                              <div className="mb-4 flex items-start justify-between gap-3">
-                                <div>
-                                  <p className="text-xs text-muted-foreground">{label} Epoch</p>
-                                  <p className="mt-1 text-xl font-semibold tracking-normal">
-                                    {epoch ? `#${epoch.epochId}` : "--"}
-                                  </p>
-                                </div>
-                                {epoch ? (
-                                  <Badge variant={epoch.status === "Closed" ? "outline" : "secondary"}>
-                                    {epoch.status}
-                                  </Badge>
-                                ) : (
-                                  <Badge variant="secondary">No data</Badge>
-                                )}
-                              </div>
-                              <InfoPairs
-                                items={[
-                                  {
-                                    label: shareLabel,
-                                    value: epoch ? `${formatTokenAmount(epoch.totalPendingShares, 18)} ${vault.symbol}` : "--"
-                                  },
-                                  {
-                                    label: epoch?.status === "Settled" ? "Redeemed Value" : "Estimated Value",
-                                    value: epoch ? formatRedeemEpochValue(epoch.totalPendingShares, price) : "--"
-                                  },
-                                  {
-                                    label: "Settled Assets",
-                                    value: settledEpoch ? formatAssetAmount(settledEpoch.assets) : "--"
-                                  },
-                                  {
-                                    label: "Settlement Price",
-                                    value: settledEpoch
-                                      ? formatSharePrice(settledEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
-                                      : "--"
-                                  },
-                                  {
-                                    label: "Report",
-                                    value: epoch?.reportId && epoch.reportId !== "0" ? `#${epoch.reportId}` : "--"
-                                  },
-                                  {
-                                    label: "Redeem Fee",
-                                    value: formatFeeRate(epoch?.redeemFeeRate)
-                                  },
-                                  {
-                                    label: "Protocol Fee",
-                                    value: formatFeeRate(epoch?.protocolFeeRate)
-                                  },
-                                  {
-                                    label: "Opened",
-                                    value: epoch?.openedAt && epoch.openedAt !== "0" ? formatDate(epoch.openedAt) : "--"
-                                  },
-                                  {
-                                    label: "Closed",
-                                    value: epoch?.closedAt && epoch.closedAt !== "0" ? formatDate(epoch.closedAt) : "--"
-                                  },
-                                  {
-                                    label: "Settled",
-                                    value: epoch?.settledAt && epoch.settledAt !== "0" ? formatDate(epoch.settledAt) : "--"
-                                  }
-                                ]}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
                     </section>
                   </div>
-
-                  <section className="rounded-lg border bg-background p-4">
-                    <h3 className="mb-3 text-base font-medium">Readiness</h3>
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Can close epoch?</p>
-                        <p className="mt-1 font-medium">Needs contract action state</p>
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Can settle epoch?</p>
-                        <p className="mt-1 font-medium">Requires fresh NAV report</p>
-                      </div>
-                      <div className="rounded-md border p-3">
-                        <p className="text-sm text-muted-foreground">Can users claim?</p>
-                        <p className="mt-1 font-medium">
-                          {BigInt(vaultContract?.totalClaimableRedeemAssets ?? "0") > BigInt(0)
-                            ? "Redeem claims available"
-                            : "No redeem reserve"}
-                        </p>
-                      </div>
-                    </div>
-                  </section>
 
                   <Card>
                     <CardHeader className="border-b bg-muted/20">
