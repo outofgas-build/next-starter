@@ -42,31 +42,16 @@ const ASSET_ACCENTS: Record<string, string> = {
 };
 
 export function VaultIcon({ symbol, name, className }: VaultIconProps) {
-  const label = symbol || name || "Vault";
-  const strategyLogo = STRATEGY_LOGOS[symbol ?? ""];
+  const strategyLogo = STRATEGY_LOGOS[symbol ?? ""]!;
 
   return (
-    <span
-      className={cn(
-        "inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/10 p-2 shadow-[0_0_24px_rgba(57,152,255,0.18)]",
-        className
-      )}
-    >
-      {strategyLogo ? (
-        <Image
-          alt={strategyLogo.alt}
-          className={cn("max-h-full max-w-full object-contain", strategyLogo.className)}
-          height={48}
-          src={strategyLogo.src}
-          width={48}
-        />
-      ) : (
-        <span aria-hidden="true" className="text-sm font-semibold text-slate-950">
-          {label.slice(0, 2)}
-        </span>
-      )}
-      <span className="sr-only">{label}</span>
-    </span>
+    <Image
+      alt={strategyLogo.alt || name || "Vault"}
+      className={cn("inline-block shrink-0 object-contain", strategyLogo.className, className)}
+      height={48}
+      src={strategyLogo.src}
+      width={96}
+    />
   );
 }
 

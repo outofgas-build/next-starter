@@ -19,7 +19,7 @@ import {
   SidebarRail
 } from "@/components/ui/sidebar";
 import { VAULT_CONFIGS, useVaultsDashboard } from "@/hooks/use-vaults";
-import { VaultIcon, VaultSymbolTag } from "@/components/vault-icon";
+import { VaultIcon } from "@/components/vault-icon";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar() {
@@ -72,7 +72,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        "relative h-[150px] items-stretch rounded-[10px] border border-white/8 bg-[#07111f]/70 px-5 py-[18px] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#0a1729] [&_svg]:size-[30px]",
+                        "relative h-20 items-stretch rounded-[10px] border border-white/8 bg-[#07111f]/70 px-3 py-3 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-colors hover:bg-[#0a1729] [&_svg]:size-[30px]",
                         "data-active:border-[#147cff] data-active:bg-[linear-gradient(145deg,rgba(19,124,255,0.18),rgba(10,19,34,0.9)_45%,rgba(10,19,34,0.74))] data-active:text-white data-active:shadow-[inset_2px_0_0_#147cff]"
                       )}
                       isActive={isActive}
@@ -83,12 +83,12 @@ export function AppSidebar() {
                           <VaultIcon
                             symbol={vault.symbol}
                             name={vault.name}
-                            className="mb-3 size-[30px] text-[#b99a69]"
+                            className="mb-3 text-[#b99a69]"
                           />
-                          <span className="line-clamp-2 max-w-full text-[16px] font-semibold leading-[20px] text-white">
+                          <span className="line-clamp-1 max-w-full text-sm font-semibold leading-[20px] text-white">
                             {vault.name}
                           </span>
-                          <VaultSymbolTag symbol={vault.symbol} className="mt-auto" />
+                          {/*<VaultSymbolTag symbol={vault.symbol} className="mt-auto" />*/}
                         </div>
                         {isActive ? (
                           <span className="absolute right-[17px] top-[18px] size-4 rounded-full bg-[#147cff] shadow-[0_0_16px_rgba(20,124,255,0.85)]" />

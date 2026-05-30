@@ -48,6 +48,7 @@ type DepositEpochSnapshot = {
 };
 
 export type VaultContract = {
+  paused: boolean;
   totalAssets: string;
   activeNavAssets: string;
   trustedAssetsPerShare: string;
@@ -282,6 +283,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     abi: vaultAbi
   } as const;
   const primaryContracts = [
+    { ...vaultContract, functionName: "paused" },
     { ...vaultContract, functionName: "totalAssets" },
     { ...vaultContract, functionName: "activeNavAssets" },
     { ...vaultContract, functionName: "trustedAssetsPerShare" },
@@ -308,6 +310,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     contracts: primaryContracts
   });
   let primaryResultIndex = 0;
+  const paused = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<boolean>, "paused");
   const totalAssets = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "totalAssets");
   const activeNavAssets = requireMulticallResult(
     primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
@@ -460,6 +463,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
   );
 
   return {
+    paused,
     totalAssets: totalAssets.toString(),
     activeNavAssets: activeNavAssets.toString(),
     trustedAssetsPerShare: trustedAssetsPerShare.toString(),

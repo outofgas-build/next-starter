@@ -39,6 +39,27 @@ export const vaultAbi = [
   },
   {
     type: "function",
+    name: "pause",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "unpause",
+    inputs: [],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
+    name: "paused",
+    inputs: [],
+    outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
     name: "totalAssets",
     inputs: [],
     outputs: [{ name: "managedAssets", type: "uint256", internalType: "uint256" }],

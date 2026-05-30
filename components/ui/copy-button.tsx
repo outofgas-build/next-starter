@@ -60,7 +60,7 @@ export function CopyButton({
       <span className="relative size-4">
         <Copy
           className={cn(
-            "absolute inset-0 size-4 transition-all duration-200",
+            "absolute inset-0 size-3.5 transition-all duration-200",
             copied ? "scale-75 opacity-0" : "scale-100 opacity-100"
           )}
         />
