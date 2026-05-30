@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, Gauge, RefreshCw } from "lucide-react";
+import { Gauge, Network, RefreshCw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -20,7 +20,7 @@ import {
   SidebarRail,
   SidebarSeparator
 } from "@/components/ui/sidebar";
-import { useVaultsDashboard } from "@/hooks/use-vaults";
+import { VAULT_CONFIGS, useVaultsDashboard } from "@/hooks/use-vaults";
 import { formatAddress } from "@/lib/format";
 
 export function AppSidebar() {
@@ -60,15 +60,15 @@ export function AppSidebar() {
                   asChild
                   className="h-10 rounded-md pr-12 text-sidebar-foreground/80 data-active:bg-sidebar-accent data-active:text-sidebar-accent-foreground"
                   isActive={pathname === "/"}
-                  tooltip="Vault Registry"
+                  tooltip="Configured Vaults"
                 >
                   <Link href="/">
                     <Gauge />
-                    <span>Vault Registry</span>
+                    <span>Configured Vaults</span>
                   </Link>
                 </SidebarMenuButton>
                 <SidebarMenuBadge className="right-2 top-2 bg-background/70 text-sidebar-foreground/60 shadow-[inset_0_0_0_1px_var(--sidebar-border)]">
-                  {data?.vaultRegistries[0]?.vaultCount ?? vaults.length}
+                  {VAULT_CONFIGS.length}
                 </SidebarMenuBadge>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -106,6 +106,7 @@ export function AppSidebar() {
                               {vault.symbol}
                             </span>
                             <span className="truncate">{formatAddress(vault.address)}</span>
+                            <span className="truncate">{vault.configuredChain.name}</span>
                           </span>
                         </span>
                       </Link>
@@ -127,9 +128,9 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton className="h-9 rounded-md text-sidebar-foreground/65" tooltip="Registry">
-              <Database />
-              <span>{formatAddress(data?.vaultRegistries[0]?.address)}</span>
+            <SidebarMenuButton className="h-9 rounded-md text-sidebar-foreground/65" tooltip="Configured chains">
+              <Network />
+              <span>{new Set(VAULT_CONFIGS.map((vault) => vault.chain.id)).size} chains</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

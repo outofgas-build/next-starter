@@ -1,15 +1,8 @@
 import { graphql } from "../generated";
 
 export const VAULTS_DASHBOARD = graphql(`
-  query VaultsDashboard {
-    vaultRegistries(first: 1, orderBy: updatedAtTimestamp, orderDirection: desc) {
-      id
-      address
-      vaultCount
-      createdAtTimestamp
-      updatedAtTimestamp
-    }
-    vaults(first: 100, orderBy: registeredAtTimestamp, orderDirection: desc) {
+  query VaultsDashboard($vaultIds: [Bytes!]) {
+    vaults(first: 100, orderBy: registeredAtTimestamp, orderDirection: desc, where: { id_in: $vaultIds }) {
       id
       address
       name
@@ -97,10 +90,6 @@ export const VAULT_DETAIL = graphql(`
         name
         symbol
         decimals
-      }
-      registry {
-        address
-        vaultCount
       }
       strategyManager {
         address

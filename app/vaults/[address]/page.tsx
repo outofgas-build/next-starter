@@ -4,10 +4,9 @@ import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Copy, FileText, LockKeyhole,
 import { useParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
 import { useQueryClient } from "@tanstack/react-query";
-import { FormEvent, ReactNode, useState } from "react";
+import { createContext, FormEvent, ReactNode, useContext, useState } from "react";
 import { toast } from "sonner";
 import { createPublicClient, createWalletClient, custom, erc20Abi, http, isAddress, type Address, type Hex } from "viem";
-import { base } from "viem/chains";
 import { AuthGuard } from "@/components/auth-guard";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -20,28 +19,22 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useVaultDetail, useVaultContract, type VaultContract } from "@/hooks/use-vaults";
+import { useVaultConfig, useVaultDetail, useVaultContract, type VaultContract } from "@/hooks/use-vaults";
 import { reportOracleAbi, strategyManagerAbi, vaultAbi } from "@/lib/abis";
 import { formatAddress, formatBps, formatDate, formatInteger, formatSharePrice, formatTokenAmount } from "@/lib/format";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 
 type OperationType = "deposit" | "redeem";
-type StrategyKind = "0" | "1";
 type ExplorerEntity = "address" | "tx";
 
-const blockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
-const chainRpcUrl = process.env.NEXT_PUBLIC_CHAIN_RPC_URL ?? "https://mainnet.base.org";
+const defaultBlockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
 const bytes32Pattern = /^0x[0-9a-fA-F]{64}$/;
 const maxUint64 = (BigInt(1) << BigInt(64)) - BigInt(1);
+const ExplorerUrlContext = createContext(defaultBlockExplorerUrl);
 
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(chainRpcUrl)
-});
-
-function getExplorerUrl(value: string, entity: ExplorerEntity) {
-  return `${blockExplorerUrl.replace(/\/$/, "")}/${entity}/${value}`;
+function getExplorerUrl(value: string, entity: ExplorerEntity, explorerUrl: string) {
+  return `${explorerUrl.replace(/\/$/, "")}/${entity}/${value}`;
 }
 
 function copyText(label: string, value: string) {
@@ -87,6 +80,8 @@ function ExplorerChip({
   label?: string;
   className?: string;
 }) {
+  const explorerUrl = useContext(ExplorerUrlContext);
+
   if (!value) return <span className={cn("font-mono text-sm text-muted-foreground", className)}>--</span>;
 
   const displayValue = label ?? formatAddress(value);
@@ -95,7 +90,7 @@ function ExplorerChip({
     <span className={cn("inline-flex max-w-full items-center gap-0.5", className)}>
       <a
         className="inline-flex min-w-0 items-center rounded-md py-1 font-mono text-xs text-primary transition-opacity hover:opacity-80"
-        href={getExplorerUrl(value, entity)}
+        href={getExplorerUrl(value, entity, explorerUrl)}
         rel="noreferrer"
         target="_blank"
         title={value}
@@ -241,13 +236,19 @@ function getIdleReserveStatus(vaultContract?: VaultContract) {
 export default function VaultDetailPage() {
   const params = useParams<{ address: string }>();
   const address = params.address;
+  const vaultConfig = useVaultConfig(address);
   const queryClient = useQueryClient();
   const { wallets } = useWallets();
   const { data, isLoading, error } = useVaultDetail(address);
   const { data: vaultContract } = useVaultContract(address);
+  const publicClient = vaultConfig
+    ? createPublicClient({
+        chain: vaultConfig.chain,
+        transport: http(vaultConfig.rpcUrl)
+      })
+    : null;
   const vault = data?.vault;
   const [strategyAddress, setStrategyAddress] = useState("");
-  const [strategyKind, setStrategyKind] = useState<StrategyKind>("0");
   const [isAddingStrategy, setIsAddingStrategy] = useState(false);
   const [allocateStrategyAddress, setAllocateStrategyAddress] = useState("");
   const [allocateAssets, setAllocateAssets] = useState("");
@@ -277,7 +278,7 @@ export default function VaultDetailPage() {
   async function handleAddStrategySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig) return;
 
     const normalizedStrategyAddress = strategyAddress.trim();
     if (!isAddress(normalizedStrategyAddress)) {
@@ -298,18 +299,18 @@ export default function VaultDetailPage() {
 
     try {
       setIsAddingStrategy(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: wallet.address as Address,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
         address: vault.strategyManager.address as Address,
         abi: strategyManagerAbi,
         functionName: "addStrategy",
-        args: [normalizedStrategyAddress as Address, Number(strategyKind)]
+        args: [normalizedStrategyAddress as Address]
       });
 
       toast.success("Add strategy transaction submitted.", {
@@ -331,7 +332,7 @@ export default function VaultDetailPage() {
   async function handleAllocateSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig) return;
 
     const normalizedStrategyAddress = allocateStrategyAddress.trim();
     if (!isAddress(normalizedStrategyAddress)) {
@@ -370,11 +371,11 @@ export default function VaultDetailPage() {
 
     try {
       setIsAllocatingStrategy(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: wallet.address as Address,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
@@ -404,7 +405,7 @@ export default function VaultDetailPage() {
   async function handleReturnSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig || !publicClient) return;
 
     const normalizedStrategyAddress = returnStrategyAddress.trim();
     if (!isAddress(normalizedStrategyAddress)) {
@@ -448,11 +449,11 @@ export default function VaultDetailPage() {
 
     try {
       setIsReturningStrategy(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: walletAddress,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
 
@@ -509,7 +510,7 @@ export default function VaultDetailPage() {
   async function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig) return;
 
     const functionName = closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch";
 
@@ -534,11 +535,11 @@ export default function VaultDetailPage() {
 
     try {
       setIsClosingEpoch(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: wallet.address as Address,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
@@ -567,7 +568,7 @@ export default function VaultDetailPage() {
   async function handleSettleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig) return;
 
     const functionName = settleType === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch";
 
@@ -592,11 +593,11 @@ export default function VaultDetailPage() {
 
     try {
       setIsSettlingEpoch(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: wallet.address as Address,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
@@ -625,7 +626,7 @@ export default function VaultDetailPage() {
   async function handleReportSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!vault) return;
+    if (!vault || !vaultConfig) return;
 
     if (!isAddress(vault.valuationOracle.address)) {
       toast.error("Report oracle address is invalid.");
@@ -690,11 +691,11 @@ export default function VaultDetailPage() {
 
     try {
       setIsSubmittingReport(true);
-      await wallet.switchChain(base.id);
+      await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: wallet.address as Address,
-        chain: base,
+        chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = metadataHash
@@ -738,6 +739,17 @@ export default function VaultDetailPage() {
     );
   }
 
+  if (!vaultConfig) {
+    return (
+      <PageContainer className="min-h-0">
+        <Alert>
+          <AlertTitle>Vault not configured</AlertTitle>
+          <AlertDescription>Add {address} to the configured vault list before managing it.</AlertDescription>
+        </Alert>
+      </PageContainer>
+    );
+  }
+
   if (error) {
     return (
       <PageContainer className="min-h-0">
@@ -765,10 +777,13 @@ export default function VaultDetailPage() {
   const vaultTypeName = formatVaultTypeName(vault.vaultTypeName);
   const feeManager = vaultContract?.feeManager;
   const feeValues = {
-    depositFeeRate: feeManager?.depositFeeRate ?? vault.depositFeeRate,
-    redeemFeeRate: feeManager?.redeemFeeRate ?? vault.redeemFeeRate,
+    entryFeeRate: feeManager?.entryFeeRate ?? vault.depositFeeRate,
+    exitFeeRate: feeManager?.exitFeeRate ?? vault.redeemFeeRate,
     performanceFeeRate: feeManager?.performanceFeeRate ?? vault.performanceFeeRate,
-    protocolFeeRate: feeManager?.protocolFeeRate ?? vault.protocolFeeRate,
+    entryProtocolShareRate: feeManager?.entryProtocolShareRate ?? vault.protocolFeeRate,
+    exitProtocolShareRate: feeManager?.exitProtocolShareRate ?? vault.protocolFeeRate,
+    managementProtocolShareRate: feeManager?.managementProtocolShareRate ?? vault.protocolFeeRate,
+    performanceProtocolShareRate: feeManager?.performanceProtocolShareRate ?? vault.protocolFeeRate,
     managementFeeRate: feeManager?.managementFeeRate ?? vault.managementFeeRate,
     feeRecipient: feeManager?.feeRecipient ?? vault.feeRecipient,
     protocolFeeRecipient: feeManager?.protocolFeeRecipient ?? vault.protocolFeeRecipient
@@ -823,7 +838,8 @@ export default function VaultDetailPage() {
     epochId ? data.redeemEpoches.find((epoch) => String(epoch.epochId) === epochId) : undefined;
 
   return (
-    <PageContainer>
+    <ExplorerUrlContext.Provider value={vaultConfig.explorerUrl}>
+      <PageContainer>
       <section className="overflow-hidden rounded-xl border border-border/80 bg-card">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b p-6">
           <div className="min-w-0">
@@ -1053,8 +1069,8 @@ export default function VaultDetailPage() {
                                 ? formatSharePrice(latestDepositEpoch.assetsPerShare, assetDecimals, { scale: "oracle" })
                                 : "--"
                             },
-                            { label: "Deposit Fee", value: formatFeeRate(feeValues.depositFeeRate) },
-                            { label: "Protocol Fee", value: formatFeeRate(feeValues.protocolFeeRate) }
+                            { label: "Entry Fee", value: formatFeeRate(feeValues.entryFeeRate) },
+                            { label: "Entry Protocol Share", value: formatFeeRate(feeValues.entryProtocolShareRate) }
                           ]}
                         />
                       </section>
@@ -1077,8 +1093,8 @@ export default function VaultDetailPage() {
                             label: "Claimable Reserve",
                             value: formatAssetAmount(vaultContract?.totalClaimableRedeemAssets)
                           },
-                          { label: "Redeem Fee", value: formatFeeRate(feeValues.redeemFeeRate) },
-                          { label: "Protocol Fee", value: formatFeeRate(feeValues.protocolFeeRate) }
+                          { label: "Exit Fee", value: formatFeeRate(feeValues.exitFeeRate) },
+                          { label: "Exit Protocol Share", value: formatFeeRate(feeValues.exitProtocolShareRate) }
                         ]}
                       />
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -1674,18 +1690,18 @@ export default function VaultDetailPage() {
                   <div className="grid gap-4 xl:grid-cols-3">
                     <AccountingMetric
                       label="Deposit Fee"
-                      value={formatFeeRate(feeValues.depositFeeRate)}
-                      detail="Applied to deposit settlement when configured"
+                      value={formatFeeRate(feeValues.entryFeeRate)}
+                      detail="Entry fee applied when configured"
                     />
                     <AccountingMetric
                       label="Redeem Fee"
-                      value={formatFeeRate(feeValues.redeemFeeRate)}
-                      detail="Applied to redeem settlement when configured"
+                      value={formatFeeRate(feeValues.exitFeeRate)}
+                      detail="Exit fee applied when configured"
                     />
                     <AccountingMetric
-                      label="Protocol Fee"
-                      value={formatFeeRate(feeValues.protocolFeeRate)}
-                      detail="Protocol share of configured fee flows"
+                      label="Entry Protocol Share"
+                      value={formatFeeRate(feeValues.entryProtocolShareRate)}
+                      detail="Protocol share of entry fee flows"
                     />
                   </div>
 
@@ -1716,11 +1732,26 @@ export default function VaultDetailPage() {
                     <h3 className="mb-3 text-base font-medium">Fee Rates</h3>
                     <InfoPairs
                       items={[
-                        { label: "Deposit Fee", value: formatFeeRate(feeValues.depositFeeRate) },
-                        { label: "Redeem Fee", value: formatFeeRate(feeValues.redeemFeeRate) },
+                        { label: "Entry Fee", value: formatFeeRate(feeValues.entryFeeRate) },
+                        { label: "Exit Fee", value: formatFeeRate(feeValues.exitFeeRate) },
                         { label: "Management Fee", value: formatFeeRate(feeValues.managementFeeRate) },
                         { label: "Performance Fee", value: formatFeeRate(feeValues.performanceFeeRate) },
-                        { label: "Protocol Fee", value: formatFeeRate(feeValues.protocolFeeRate) }
+                        {
+                          label: "Entry Protocol Share",
+                          value: formatFeeRate(feeValues.entryProtocolShareRate)
+                        },
+                        {
+                          label: "Exit Protocol Share",
+                          value: formatFeeRate(feeValues.exitProtocolShareRate)
+                        },
+                        {
+                          label: "Management Protocol Share",
+                          value: formatFeeRate(feeValues.managementProtocolShareRate)
+                        },
+                        {
+                          label: "Performance Protocol Share",
+                          value: formatFeeRate(feeValues.performanceProtocolShareRate)
+                        }
                       ]}
                     />
                   </section>
@@ -1780,16 +1811,12 @@ export default function VaultDetailPage() {
                   </section>
 
                   <section className="rounded-lg border bg-background p-4">
-                    <h3 className="mb-3 text-base font-medium">Registry / System</h3>
+                    <h3 className="mb-3 text-base font-medium">Deployment / System</h3>
                     <InfoPairs
                       items={[
                         { label: "Vault Address", value: <ExplorerChip value={vault.address} /> },
+                        { label: "Chain", value: vaultConfig.chain.name, detail: `Chain ID ${vaultConfig.chain.id}` },
                         { label: "Vault Type", value: vault.vaultTypeName, detail: `Type ${vault.vaultType}` },
-                        {
-                          label: "Registry",
-                          value: <ExplorerChip value={vault.registry.address} />,
-                          detail: `${formatInteger(vault.registry.vaultCount)} registered vaults`
-                        },
                         {
                           label: "Registered",
                           value: formatDate(vault.registeredAtTimestamp),
@@ -2002,17 +2029,8 @@ export default function VaultDetailPage() {
                                     onChange={(event) => setStrategyAddress(event.target.value)}
                                   />
                                 </div>
-                                <div className="space-y-2">
-                                  <Label>Strategy Kind</Label>
-                                  <Tabs value={strategyKind} onValueChange={(value) => setStrategyKind(value as StrategyKind)}>
-                                    <TabsList>
-                                      <TabsTrigger value="0">Offchain</TabsTrigger>
-                                      <TabsTrigger value="1">Adapter</TabsTrigger>
-                                    </TabsList>
-                                  </Tabs>
-                                </div>
                                 <Alert>
-                                  <AlertTitle>addStrategy(address, kind)</AlertTitle>
+                                  <AlertTitle>addStrategy(address)</AlertTitle>
                                   <AlertDescription>
                                     <ExplorerChip value={vault.strategyManager.address} />
                                   </AlertDescription>
@@ -2260,6 +2278,7 @@ export default function VaultDetailPage() {
             </Tabs>
           </section>
       </section>
-    </PageContainer>
+      </PageContainer>
+    </ExplorerUrlContext.Provider>
   );
 }

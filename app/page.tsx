@@ -1,7 +1,7 @@
 "use client";
 
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpRight, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowUpRight, Network, RefreshCw, ShieldCheck, Wallet } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
@@ -14,18 +14,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { DataTable } from "@/components/data-table";
 import { PageContainer } from "@/components/page-container";
-import type { VaultsDashboardQuery } from "@/graphql/generated/graphql";
-import { useVaultsDashboard } from "@/hooks/use-vaults";
+import { VAULT_CONFIGS, type ConfiguredVaultRow, useVaultsDashboard } from "@/hooks/use-vaults";
 import {
   formatAddress,
-  formatDate,
   formatInteger,
   formatSharePrice,
   formatTokenAmount,
   sumTokenAmounts
 } from "@/lib/format";
 
-type VaultRow = VaultsDashboardQuery["vaults"][number];
+type VaultRow = ConfiguredVaultRow;
 
 const columns: ColumnDef<VaultRow>[] = [
   {
@@ -40,6 +38,7 @@ const columns: ColumnDef<VaultRow>[] = [
           </Badge>
         </div>
         <div className="font-mono text-xs text-muted-foreground">{formatAddress(row.original.address)}</div>
+        <div className="text-xs text-muted-foreground">{row.original.configuredChain.name}</div>
       </div>
     )
   },
@@ -104,8 +103,8 @@ export default function Home() {
   const { login, authenticated } = usePrivy();
   const { data, isLoading, isFetching, refetch, error } = useVaultsDashboard();
   const vaults = data?.vaults ?? [];
-  const registry = data?.vaultRegistries[0];
   const activeVaults = vaults.filter((vault) => vault.active).length;
+  const configuredChains = new Set(VAULT_CONFIGS.map((vault) => vault.chain.id)).size;
   const totalTvl = sumTokenAmounts(
     vaults.map((vault) => ({
       value: vault.totalAssets,
@@ -130,12 +129,12 @@ export default function Home() {
                   <span>/</span>
                   <span>Admin</span>
                   <span>/</span>
-                  <span className="text-foreground">Vault Registry</span>
+                  <span className="text-foreground">Configured Vaults</span>
                 </div>
                 <CardTitle className="text-3xl">Venzo admin console</CardTitle>
                 <CardDescription>
-                  Monitor registered vaults, oracle health, settlement state, and strategy accounting from the
-                  indexed registry.
+                  Monitor configured vaults across chains, including oracle health, settlement state, and strategy
+                  accounting.
                 </CardDescription>
               </div>
             </div>
@@ -154,12 +153,12 @@ export default function Home() {
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
             <div>
-              <p className="text-sm text-muted-foreground">Registry</p>
-              <p className="mt-1 font-mono text-sm">{formatAddress(registry?.address)}</p>
+              <p className="text-sm text-muted-foreground">Configured Chains</p>
+              <p className="mt-1 text-2xl font-semibold">{configuredChains}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Registered</p>
-              <p className="mt-1 text-2xl font-semibold">{registry ? formatInteger(registry.vaultCount) : "--"}</p>
+              <p className="text-sm text-muted-foreground">Configured Vaults</p>
+              <p className="mt-1 text-2xl font-semibold">{VAULT_CONFIGS.length}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Active Vaults</p>
@@ -186,11 +185,11 @@ export default function Home() {
           <CardContent className="grid gap-4 text-sm text-primary-foreground/75 sm:grid-cols-3">
             <div>
               <p>Data source</p>
-              <p className="font-medium text-primary-foreground">Indexed vault data</p>
+              <p className="font-medium text-primary-foreground">Configured vaults</p>
             </div>
             <div>
-              <p>Last registry update</p>
-              <p className="font-medium text-primary-foreground">{formatDate(registry?.updatedAtTimestamp)}</p>
+              <p>Chains</p>
+              <p className="font-medium text-primary-foreground">{configuredChains}</p>
             </div>
             <div>
               <p>Status</p>
@@ -203,18 +202,26 @@ export default function Home() {
 
         <Card>
           <CardHeader>
-            <CardDescription>Registry Contract</CardDescription>
-            <CardTitle className="font-mono text-base">{formatAddress(registry?.address)}</CardTitle>
+            <CardDescription>Vault Configuration</CardDescription>
+            <CardTitle className="text-base">{VAULT_CONFIGS.length} configured vaults</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2 text-sm">
               <ShieldCheck className="text-primary" />
-              Canonical vault discovery source
+              Canonical admin discovery source
             </div>
             <Separator />
-            <p className="break-all font-mono text-xs text-muted-foreground">
-              {registry?.address ?? "Loading registry"}
-            </p>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              {VAULT_CONFIGS.map((vault) => (
+                <div className="flex items-center justify-between gap-3" key={`${vault.chain.id}:${vault.address}`}>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Network className="size-3.5" />
+                    {vault.chain.name}
+                  </span>
+                  <span className="font-mono">{formatAddress(vault.address)}</span>
+                </div>
+              ))}
+            </div>
           </CardContent>
         </Card>
       </section>
@@ -223,7 +230,7 @@ export default function Home() {
         <CardHeader>
           <CardTitle>Vaults</CardTitle>
           <CardDescription>
-            All registered vaults with current accounting, oracle quorum, and flow metrics.
+            Configured vaults with current accounting, oracle quorum, and flow metrics.
           </CardDescription>
         </CardHeader>
         <CardContent>

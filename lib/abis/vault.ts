@@ -1,6 +1,6 @@
 import type { Abi } from "viem";
 
-// ABI fragment sourced from /Users/forever9/Code/venzo/venzo-city-contracts/out/FullyAsyncVault.sol/FullyAsyncVault.json.
+// ABI fragment sourced from the latest vault artifacts in /Users/forever9/Code/venzo/venzo-city-contracts/out.
 export const vaultAbi = [
   {
     type: "function",

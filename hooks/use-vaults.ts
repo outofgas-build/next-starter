@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { createPublicClient, erc20Abi, http, type Address } from "viem";
+import { getVaultConfigByAddress, getVaultConfigsByChain, VAULT_CONFIGS, type VaultConfig } from "@/config/vaults";
 import {
   VaultDetailDocument,
   VaultsDashboardDocument,
@@ -11,15 +12,8 @@ import {
 import { feeManagerAbi, strategyManagerAbi, vaultAbi } from "@/lib/abis";
 import { fetchGraphQL } from "@/lib/graphql-client";
 import { queryKeys } from "@/lib/query-keys";
-import { base } from "viem/chains";
 
-const chainRpcUrl = process.env.NEXT_PUBLIC_CHAIN_RPC_URL ?? "https://mainnet.base.org";
 const zeroAddress = "0x0000000000000000000000000000000000000000";
-
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(chainRpcUrl)
-});
 
 type RedeemEpochSnapshot = {
   epochId: string;
@@ -67,10 +61,13 @@ export type VaultContract = {
     vault: string;
     feeRecipient: string;
     protocolFeeRecipient: string;
-    depositFeeRate: string;
-    redeemFeeRate: string;
+    entryFeeRate: string;
+    exitFeeRate: string;
     performanceFeeRate: string;
-    protocolFeeRate: string;
+    entryProtocolShareRate: string;
+    exitProtocolShareRate: string;
+    managementProtocolShareRate: string;
+    performanceProtocolShareRate: string;
     managementFeeRate: string;
     lastManagementFeeAccruedAt: string;
     highWaterMarkAssetsPerShare: string;
@@ -102,15 +99,52 @@ type FeeManagerData = [
   vault: Address,
   feeRecipient: Address,
   protocolFeeRecipient: Address,
-  depositFeeRate: bigint,
-  redeemFeeRate: bigint,
+  entryFeeRate: bigint,
+  exitFeeRate: bigint,
   performanceFeeRate: bigint,
-  protocolFeeRate: bigint,
+  entryProtocolShareRate: bigint,
+  exitProtocolShareRate: bigint,
+  managementProtocolShareRate: bigint,
+  performanceProtocolShareRate: bigint,
   managementFeeRate: bigint,
   lastManagementFeeAccruedAt: bigint,
   highWaterMarkAssetsPerShare: bigint,
   feesInitialized: boolean
 ];
+
+export type ConfiguredVaultRow = VaultsDashboardQuery["vaults"][number] & {
+  configuredChain: VaultConfig["chain"];
+};
+
+export type ConfiguredVaultsDashboard = Omit<VaultsDashboardQuery, "vaults"> & {
+  vaults: ConfiguredVaultRow[];
+};
+
+function createVaultPublicClient(vaultConfig: VaultConfig) {
+  return createPublicClient({
+    chain: vaultConfig.chain,
+    transport: http(vaultConfig.rpcUrl)
+  });
+}
+
+type MulticallResult<TResult> =
+  | {
+      status: "success";
+      result: TResult;
+    }
+  | {
+      status: "failure";
+      error: Error;
+    };
+
+function requireMulticallResult<TResult>(result: MulticallResult<TResult>, functionName: string) {
+  if (result.status === "success") return result.result;
+  throw new Error(`${functionName} failed: ${result.error.message}`);
+}
+
+function optionalMulticallResult<TResult>(result: MulticallResult<TResult>, fallback: TResult) {
+  return result.status === "success" ? result.result : fallback;
+}
 
 function formatRedeemEpochStatus(status: number) {
   if (status === 1) return "Closed";
@@ -147,62 +181,104 @@ function serializeRedeemEpoch(epochId: bigint, epoch: RedeemEpochContract): Rede
 }
 
 async function fetchVaultContract(address: string): Promise<VaultContract> {
+  const vaultConfig = getVaultConfigByAddress(address);
+  if (!vaultConfig) {
+    throw new Error(`Vault ${address} is not configured.`);
+  }
+
+  const publicClient = createVaultPublicClient(vaultConfig);
   const vaultAddress = address.toLowerCase() as Address;
   const vaultContract = {
     address: vaultAddress,
     abi: vaultAbi
   } as const;
-  const [
-    totalAssets,
-    activeNavAssets,
-    trustedAssetsPerShare,
-    availableIdleAssetsForStrategy,
-    totalPendingDepositAssets,
-    depositEpochDuration,
-    redeemEpochDuration,
-    totalClaimableRedeemAssets,
-    totalClaimableRedeemNetShares,
-    totalSupply,
-    activeShareSupply,
-    cachedActiveNav,
-    currentRedeemEpochId,
-    asset,
-    strategyManager,
-    feeManager
-  ] = await publicClient.multicall({
-    allowFailure: false,
-    contracts: [
-      { ...vaultContract, functionName: "totalAssets" },
-      { ...vaultContract, functionName: "activeNavAssets" },
-      { ...vaultContract, functionName: "trustedAssetsPerShare" },
-      { ...vaultContract, functionName: "availableIdleAssetsForStrategy" },
-      { ...vaultContract, functionName: "totalPendingDepositAssets" },
-      { ...vaultContract, functionName: "depositEpochDuration" },
-      { ...vaultContract, functionName: "redeemEpochDuration" },
-      { ...vaultContract, functionName: "totalClaimableRedeemAssets" },
-      { ...vaultContract, functionName: "totalClaimableRedeemNetShares" },
-      { ...vaultContract, functionName: "totalSupply" },
-      { ...vaultContract, functionName: "activeShareSupply" },
-      { ...vaultContract, functionName: "cachedActiveNav" },
-      { ...vaultContract, functionName: "currentRedeemEpochId" },
-      { ...vaultContract, functionName: "asset" },
-      { ...vaultContract, functionName: "strategyManager" },
-      { ...vaultContract, functionName: "feeManager" }
-    ]
+  const primaryContracts = [
+    { ...vaultContract, functionName: "totalAssets" },
+    { ...vaultContract, functionName: "activeNavAssets" },
+    { ...vaultContract, functionName: "trustedAssetsPerShare" },
+    { ...vaultContract, functionName: "availableIdleAssetsForStrategy" },
+    ...(vaultConfig.vaultType === "fullyAsync"
+      ? [{ ...vaultContract, functionName: "totalPendingDepositAssets" }]
+      : []),
+    ...(vaultConfig.vaultType === "fullyAsync" ? [{ ...vaultContract, functionName: "depositEpochDuration" }] : []),
+    { ...vaultContract, functionName: "redeemEpochDuration" },
+    { ...vaultContract, functionName: "totalClaimableRedeemAssets" },
+    { ...vaultContract, functionName: "totalClaimableRedeemNetShares" },
+    { ...vaultContract, functionName: "totalSupply" },
+    { ...vaultContract, functionName: "activeShareSupply" },
+    { ...vaultContract, functionName: "cachedActiveNav" },
+    { ...vaultContract, functionName: "currentRedeemEpochId" },
+    { ...vaultContract, functionName: "asset" },
+    { ...vaultContract, functionName: "strategyManager" },
+    { ...vaultContract, functionName: "feeManager" }
+  ] as Parameters<typeof publicClient.multicall>[0]["contracts"];
+
+  const primaryResults = await publicClient.multicall({
+    allowFailure: true,
+    contracts: primaryContracts
   });
+  let primaryResultIndex = 0;
+  const totalAssets = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "totalAssets");
+  const activeNavAssets = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "activeNavAssets"
+  );
+  const trustedAssetsPerShare = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "trustedAssetsPerShare"
+  );
+  const availableIdleAssetsForStrategy = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "availableIdleAssetsForStrategy"
+  );
+  const totalPendingDepositAssets =
+    vaultConfig.vaultType === "fullyAsync"
+      ? optionalMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, BigInt(0))
+      : BigInt(0);
+  const depositEpochDuration =
+    vaultConfig.vaultType === "fullyAsync"
+      ? requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "depositEpochDuration")
+      : BigInt(0);
+  const redeemEpochDuration = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "redeemEpochDuration"
+  );
+  const totalClaimableRedeemAssets = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "totalClaimableRedeemAssets"
+  );
+  const totalClaimableRedeemNetShares = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "totalClaimableRedeemNetShares"
+  );
+  const totalSupply = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<bigint>, "totalSupply");
+  const activeShareSupply = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "activeShareSupply"
+  );
+  const cachedActiveNav = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<readonly [bigint, bigint, Address]>,
+    "cachedActiveNav"
+  );
+  const currentRedeemEpochId = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "currentRedeemEpochId"
+  );
+  const asset = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<Address>, "asset");
+  const strategyManager = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<Address>,
+    "strategyManager"
+  );
+  const feeManager = requireMulticallResult(primaryResults[primaryResultIndex++] as MulticallResult<Address>, "feeManager");
   const hasStrategyManager = strategyManager.toLowerCase() !== zeroAddress;
   const hasFeeManager = feeManager.toLowerCase() !== zeroAddress;
   const previousRedeemEpochId = currentRedeemEpochId > BigInt(1) ? currentRedeemEpochId - BigInt(1) : null;
 
-  const secondaryContracts: Parameters<typeof publicClient.multicall>[0]["contracts"] = [
-    { ...vaultContract, functionName: "redeemEpoch", args: [currentRedeemEpochId] }
-  ];
-
-  if (previousRedeemEpochId) {
-    secondaryContracts.push({ ...vaultContract, functionName: "redeemEpoch", args: [previousRedeemEpochId] });
-  }
-
-  secondaryContracts.push(
+  const secondaryContracts = [
+    { ...vaultContract, functionName: "redeemEpoch", args: [currentRedeemEpochId] },
+    ...(previousRedeemEpochId
+      ? [{ ...vaultContract, functionName: "redeemEpoch", args: [previousRedeemEpochId] }]
+      : []),
     {
       address: asset,
       abi: erc20Abi,
@@ -213,32 +289,35 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
       address: asset,
       abi: erc20Abi,
       functionName: "decimals"
-    }
-  );
-
-  if (hasStrategyManager) {
-    secondaryContracts.push({
-      address: strategyManager,
-      abi: strategyManagerAbi,
-      functionName: "totalStrategyDebt"
-    });
-  }
-
-  if (hasFeeManager) {
-    secondaryContracts.push(
-      { address: feeManager, abi: feeManagerAbi, functionName: "vault" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "feeRecipient" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRecipient" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "depositFeeRate" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "redeemFeeRate" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "performanceFeeRate" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRate" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "managementFeeRate" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "lastManagementFeeAccruedAt" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "highWaterMarkAssetsPerShare" },
-      { address: feeManager, abi: feeManagerAbi, functionName: "feesInitialized" }
-    );
-  }
+    },
+    ...(hasStrategyManager
+      ? [
+          {
+            address: strategyManager,
+            abi: strategyManagerAbi,
+            functionName: "totalStrategyDebt"
+          }
+        ]
+      : []),
+    ...(hasFeeManager
+      ? [
+          { address: feeManager, abi: feeManagerAbi, functionName: "vault" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "feeRecipient" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "protocolFeeRecipient" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "entryFeeRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "exitFeeRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "performanceFeeRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "entryProtocolShareRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "exitProtocolShareRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "managementProtocolShareRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "performanceProtocolShareRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "managementFeeRate" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "lastManagementFeeAccruedAt" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "highWaterMarkAssetsPerShare" },
+          { address: feeManager, abi: feeManagerAbi, functionName: "feesInitialized" }
+        ]
+      : [])
+  ] as Parameters<typeof publicClient.multicall>[0]["contracts"];
 
   const secondaryResults = await publicClient.multicall({
     allowFailure: false,
@@ -253,7 +332,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
   const assetDecimals = secondaryResults[secondaryResultIndex++] as number;
   const strategyDebt = hasStrategyManager ? (secondaryResults[secondaryResultIndex++] as bigint) : BigInt(0);
   const feeManagerData = hasFeeManager
-    ? (secondaryResults.slice(secondaryResultIndex, secondaryResultIndex + 11) as FeeManagerData)
+    ? (secondaryResults.slice(secondaryResultIndex, secondaryResultIndex + 14) as FeeManagerData)
     : null;
 
   const currentRedeemEpochSnapshot = serializeRedeemEpoch(currentRedeemEpochId, redeemEpoch);
@@ -302,14 +381,17 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
           vault: feeManagerData[0],
           feeRecipient: feeManagerData[1],
           protocolFeeRecipient: feeManagerData[2],
-          depositFeeRate: feeManagerData[3].toString(),
-          redeemFeeRate: feeManagerData[4].toString(),
+          entryFeeRate: feeManagerData[3].toString(),
+          exitFeeRate: feeManagerData[4].toString(),
           performanceFeeRate: feeManagerData[5].toString(),
-          protocolFeeRate: feeManagerData[6].toString(),
-          managementFeeRate: feeManagerData[7].toString(),
-          lastManagementFeeAccruedAt: feeManagerData[8].toString(),
-          highWaterMarkAssetsPerShare: feeManagerData[9].toString(),
-          feesInitialized: feeManagerData[10]
+          entryProtocolShareRate: feeManagerData[6].toString(),
+          exitProtocolShareRate: feeManagerData[7].toString(),
+          managementProtocolShareRate: feeManagerData[8].toString(),
+          performanceProtocolShareRate: feeManagerData[9].toString(),
+          managementFeeRate: feeManagerData[10].toString(),
+          lastManagementFeeAccruedAt: feeManagerData[11].toString(),
+          highWaterMarkAssetsPerShare: feeManagerData[12].toString(),
+          feesInitialized: feeManagerData[13]
         }
       : null,
     vaultIdleBalance: vaultIdleBalance.toString(),
@@ -318,20 +400,54 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
 }
 
 export function useVaultsDashboard() {
-  return useQuery<VaultsDashboardQuery>({
+  return useQuery<ConfiguredVaultsDashboard>({
     queryKey: queryKeys.vaults.list(),
-    queryFn: () => fetchGraphQL(VaultsDashboardDocument, {}),
+    queryFn: async () => {
+      const groups = getVaultConfigsByChain();
+      const results = await Promise.all(
+        Object.values(groups).map(async (vaultConfigs) => {
+          const data = await fetchGraphQL(
+            VaultsDashboardDocument,
+            { vaultIds: vaultConfigs.map((vault) => vault.address.toLowerCase()) },
+            vaultConfigs[0].subgraphUrl
+          );
+          const vaultConfigByAddress = new Map(
+            vaultConfigs.map((vault) => [vault.address.toLowerCase(), vault] as const)
+          );
+
+          return {
+            ...data,
+            vaults: data.vaults.map((vault) => ({
+              ...vault,
+              configuredChain: vaultConfigByAddress.get(vault.address.toLowerCase())?.chain ?? vaultConfigs[0].chain
+            }))
+          };
+        })
+      );
+
+      return {
+        vaults: results
+          .flatMap((result) => result.vaults)
+          .sort((a, b) => Number(b.registeredAtTimestamp) - Number(a.registeredAtTimestamp)),
+        _meta: results.reduce<VaultsDashboardQuery["_meta"] | undefined>((latest, result) => {
+          if (!latest) return result._meta;
+          if (!result._meta) return latest;
+          return Number(result._meta.block.number) > Number(latest.block.number) ? result._meta : latest;
+        }, undefined)
+      };
+    },
     refetchInterval: 15000
   });
 }
 
 export function useVaultContract(address: string) {
   const normalizedAddress = address.toLowerCase();
+  const vaultConfig = getVaultConfigByAddress(normalizedAddress);
 
   return useQuery<VaultContract>({
     queryKey: queryKeys.vaults.contract(normalizedAddress),
     queryFn: () => fetchVaultContract(normalizedAddress),
-    enabled: Boolean(address),
+    enabled: Boolean(address && vaultConfig),
     refetchInterval: 15000,
     retry: 1
   });
@@ -339,6 +455,7 @@ export function useVaultContract(address: string) {
 
 export function useVaultDetail(address: string) {
   const normalizedAddress = address.toLowerCase();
+  const vaultConfig = getVaultConfigByAddress(normalizedAddress);
 
   return useQuery<VaultDetailQuery>({
     queryKey: queryKeys.vaults.detail(normalizedAddress),
@@ -346,8 +463,14 @@ export function useVaultDetail(address: string) {
       fetchGraphQL(VaultDetailDocument, {
         id: normalizedAddress,
         vault: normalizedAddress
-      }),
-    enabled: Boolean(address),
+      }, vaultConfig?.subgraphUrl),
+    enabled: Boolean(address && vaultConfig),
     refetchInterval: 15000
   });
 }
+
+export function useVaultConfig(address?: string) {
+  return getVaultConfigByAddress(address);
+}
+
+export { VAULT_CONFIGS };

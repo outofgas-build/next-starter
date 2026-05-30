@@ -11,9 +11,10 @@ interface GraphQLResponse<TData> {
 
 export async function fetchGraphQL<TData, TVariables>(
   document: TypedDocumentNode<TData, TVariables>,
-  variables: TVariables
+  variables: TVariables,
+  endpoint = subgraphUrl
 ) {
-  const response = await fetch(subgraphUrl, {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "content-type": "application/json"

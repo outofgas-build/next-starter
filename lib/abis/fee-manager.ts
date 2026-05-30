@@ -25,14 +25,14 @@ export const feeManagerAbi = [
   },
   {
     type: "function",
-    name: "depositFeeRate",
+    name: "entryFeeRate",
     inputs: [],
     outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
     stateMutability: "view"
   },
   {
     type: "function",
-    name: "redeemFeeRate",
+    name: "exitFeeRate",
     inputs: [],
     outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
     stateMutability: "view"
@@ -46,7 +46,28 @@ export const feeManagerAbi = [
   },
   {
     type: "function",
-    name: "protocolFeeRate",
+    name: "entryProtocolShareRate",
+    inputs: [],
+    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "exitProtocolShareRate",
+    inputs: [],
+    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "managementProtocolShareRate",
+    inputs: [],
+    outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "performanceProtocolShareRate",
     inputs: [],
     outputs: [{ name: "", type: "uint32", internalType: "uint32" }],
     stateMutability: "view"
