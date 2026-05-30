@@ -712,13 +712,12 @@ export default function VaultDetailPage() {
       return;
     }
 
-    let navAssets: bigint;
-    try {
-      navAssets = BigInt(reportNavAssets.trim());
-    } catch {
-      toast.error("Enter NAV assets as raw integer units.");
+    const parsedNavAssets = parseFormattedAssetUnits(reportNavAssets, assetDecimals);
+    if (parsedNavAssets === null) {
+      toast.error(`Enter NAV assets as a ${assetSymbol} amount.`);
       return;
     }
+    const navAssets = parsedNavAssets;
 
     if (navAssets < BigInt(0)) {
       toast.error("NAV assets cannot be negative.");
@@ -2421,8 +2420,8 @@ export default function VaultDetailPage() {
                               <Label htmlFor="report-nav">NAV Assets</Label>
                               <Input
                                 id="report-nav"
-                                inputMode="numeric"
-                                placeholder="Raw asset units"
+                                inputMode="decimal"
+                                placeholder={`0.00 ${assetSymbol}`}
                                 value={reportNavAssets}
                                 onChange={(event) => setReportNavAssets(event.target.value)}
                               />
