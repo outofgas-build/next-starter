@@ -877,10 +877,6 @@ export type StrategyManager_Filter = {
   createdAtTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   createdAtTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
   createdAtTimestamp_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  executionPaused?: InputMaybe<Scalars['Boolean']['input']>;
-  executionPaused_in?: InputMaybe<Array<Scalars['Boolean']['input']>>;
-  executionPaused_not?: InputMaybe<Scalars['Boolean']['input']>;
-  executionPaused_not_in?: InputMaybe<Array<Scalars['Boolean']['input']>>;
   id?: InputMaybe<Scalars['Bytes']['input']>;
   id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -891,55 +887,39 @@ export type StrategyManager_Filter = {
   id_not?: InputMaybe<Scalars['Bytes']['input']>;
   id_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
   id_not_in?: InputMaybe<Array<Scalars['Bytes']['input']>>;
-  maxTotalStrategyDebt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebtRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxTotalStrategyDebtRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  maxTotalStrategyDebtRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxTotalStrategyDebt_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebt_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebt_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  maxTotalStrategyDebt_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebt_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebt_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxTotalStrategyDebt_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   or?: InputMaybe<Array<InputMaybe<StrategyManager_Filter>>>;
-  totalStrategyDebt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebtRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  totalStrategyDebtRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyDebtRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  totalStrategyDebt_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebt_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebt_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  totalStrategyDebt_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebt_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebt_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyDebt_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  totalStrategyReportedAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  totalStrategyReportedAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  totalStrategyReportedAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  totalStrategyReportedAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  totalStrategyReportedAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  totalStrategyReportedAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  totalAllocation?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCapRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  totalAllocationCapRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationCapRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  totalAllocationCap_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  totalAllocationCap_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocationCap_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  totalAllocationRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  totalAllocationRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  totalAllocationRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  totalAllocation_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocation_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocation_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  totalAllocation_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocation_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocation_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  totalAllocation_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   updatedAtBlock?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -990,14 +970,11 @@ export enum StrategyManager_OrderBy {
   AssetSymbol = 'asset__symbol',
   CreatedAtBlock = 'createdAtBlock',
   CreatedAtTimestamp = 'createdAtTimestamp',
-  ExecutionPaused = 'executionPaused',
   Id = 'id',
-  MaxTotalStrategyDebt = 'maxTotalStrategyDebt',
-  MaxTotalStrategyDebtRaw = 'maxTotalStrategyDebtRaw',
-  TotalStrategyDebt = 'totalStrategyDebt',
-  TotalStrategyDebtRaw = 'totalStrategyDebtRaw',
-  TotalStrategyReportedAssets = 'totalStrategyReportedAssets',
-  TotalStrategyReportedAssetsRaw = 'totalStrategyReportedAssetsRaw',
+  TotalAllocation = 'totalAllocation',
+  TotalAllocationCap = 'totalAllocationCap',
+  TotalAllocationCapRaw = 'totalAllocationCapRaw',
+  TotalAllocationRaw = 'totalAllocationRaw',
   UpdatedAtBlock = 'updatedAtBlock',
   UpdatedAtTimestamp = 'updatedAtTimestamp',
   Vault = 'vault',
@@ -1059,6 +1036,38 @@ export type Strategy_Filter = {
   address_not?: InputMaybe<Scalars['Bytes']['input']>;
   address_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
   address_not_in?: InputMaybe<Array<Scalars['Bytes']['input']>>;
+  allocation?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCapRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  allocationCapRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationCapRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  allocationCap_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  allocationCap_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocationCap_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  allocationRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  allocationRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  allocationRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  allocation_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocation_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocation_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  allocation_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocation_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocation_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  allocation_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   allowed?: InputMaybe<Scalars['Boolean']['input']>;
   allowed_in?: InputMaybe<Array<Scalars['Boolean']['input']>>;
   allowed_not?: InputMaybe<Scalars['Boolean']['input']>;
@@ -1080,22 +1089,6 @@ export type Strategy_Filter = {
   createdAtTimestamp_lte?: InputMaybe<Scalars['BigInt']['input']>;
   createdAtTimestamp_not?: InputMaybe<Scalars['BigInt']['input']>;
   createdAtTimestamp_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  debtAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  debtAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  debtAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  debtAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  debtAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  debtAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   id?: InputMaybe<Scalars['Bytes']['input']>;
   id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -1135,39 +1128,7 @@ export type Strategy_Filter = {
   manager_not_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
   manager_starts_with?: InputMaybe<Scalars['String']['input']>;
   manager_starts_with_nocase?: InputMaybe<Scalars['String']['input']>;
-  maxDebtAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxDebtAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  maxDebtAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxDebtAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  maxDebtAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  maxDebtAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   or?: InputMaybe<Array<InputMaybe<Strategy_Filter>>>;
-  reportedAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  reportedAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
-  reportedAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  reportedAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
-  reportedAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
-  reportedAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   updatedAtBlock?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -1209,11 +1170,13 @@ export type Strategy_Filter = {
 
 export enum Strategy_OrderBy {
   Address = 'address',
+  Allocation = 'allocation',
+  AllocationCap = 'allocationCap',
+  AllocationCapRaw = 'allocationCapRaw',
+  AllocationRaw = 'allocationRaw',
   Allowed = 'allowed',
   CreatedAtBlock = 'createdAtBlock',
   CreatedAtTimestamp = 'createdAtTimestamp',
-  DebtAssets = 'debtAssets',
-  DebtAssetsRaw = 'debtAssetsRaw',
   Id = 'id',
   Kind = 'kind',
   Manager = 'manager',
@@ -1221,20 +1184,13 @@ export enum Strategy_OrderBy {
   ManagerAllocationPaused = 'manager__allocationPaused',
   ManagerCreatedAtBlock = 'manager__createdAtBlock',
   ManagerCreatedAtTimestamp = 'manager__createdAtTimestamp',
-  ManagerExecutionPaused = 'manager__executionPaused',
   ManagerId = 'manager__id',
-  ManagerMaxTotalStrategyDebt = 'manager__maxTotalStrategyDebt',
-  ManagerMaxTotalStrategyDebtRaw = 'manager__maxTotalStrategyDebtRaw',
-  ManagerTotalStrategyDebt = 'manager__totalStrategyDebt',
-  ManagerTotalStrategyDebtRaw = 'manager__totalStrategyDebtRaw',
-  ManagerTotalStrategyReportedAssets = 'manager__totalStrategyReportedAssets',
-  ManagerTotalStrategyReportedAssetsRaw = 'manager__totalStrategyReportedAssetsRaw',
+  ManagerTotalAllocation = 'manager__totalAllocation',
+  ManagerTotalAllocationCap = 'manager__totalAllocationCap',
+  ManagerTotalAllocationCapRaw = 'manager__totalAllocationCapRaw',
+  ManagerTotalAllocationRaw = 'manager__totalAllocationRaw',
   ManagerUpdatedAtBlock = 'manager__updatedAtBlock',
   ManagerUpdatedAtTimestamp = 'manager__updatedAtTimestamp',
-  MaxDebtAssets = 'maxDebtAssets',
-  MaxDebtAssetsRaw = 'maxDebtAssetsRaw',
-  ReportedAssets = 'reportedAssets',
-  ReportedAssetsRaw = 'reportedAssetsRaw',
   UpdatedAtBlock = 'updatedAtBlock',
   UpdatedAtTimestamp = 'updatedAtTimestamp',
   Vault = 'vault',
@@ -2167,14 +2123,6 @@ export type ValuationOracle_Filter = {
   latestReportId_lte?: InputMaybe<Scalars['BigInt']['input']>;
   latestReportId_not?: InputMaybe<Scalars['BigInt']['input']>;
   latestReportId_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxChangeBps?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_gt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_gte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  maxChangeBps_lt?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_lte?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_not?: InputMaybe<Scalars['BigInt']['input']>;
-  maxChangeBps_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
   maxReportAge?: InputMaybe<Scalars['BigInt']['input']>;
   maxReportAge_gt?: InputMaybe<Scalars['BigInt']['input']>;
   maxReportAge_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -2183,6 +2131,14 @@ export type ValuationOracle_Filter = {
   maxReportAge_lte?: InputMaybe<Scalars['BigInt']['input']>;
   maxReportAge_not?: InputMaybe<Scalars['BigInt']['input']>;
   maxReportAge_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  maxReportPriceDeviationBps?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  maxReportPriceDeviationBps_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_not?: InputMaybe<Scalars['BigInt']['input']>;
+  maxReportPriceDeviationBps_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
   or?: InputMaybe<Array<InputMaybe<ValuationOracle_Filter>>>;
   oracleCount?: InputMaybe<Scalars['BigInt']['input']>;
   oracleCount_gt?: InputMaybe<Scalars['BigInt']['input']>;
@@ -2200,10 +2156,16 @@ export type ValuationOracle_Filter = {
   oracleQuorum_lte?: InputMaybe<Scalars['BigInt']['input']>;
   oracleQuorum_not?: InputMaybe<Scalars['BigInt']['input']>;
   oracleQuorum_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
-  requireReportMetadataHash?: InputMaybe<Scalars['Boolean']['input']>;
-  requireReportMetadataHash_in?: InputMaybe<Array<Scalars['Boolean']['input']>>;
-  requireReportMetadataHash_not?: InputMaybe<Scalars['Boolean']['input']>;
-  requireReportMetadataHash_not_in?: InputMaybe<Array<Scalars['Boolean']['input']>>;
+  reportVault?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_contains?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_gt?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_gte?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_in?: InputMaybe<Array<Scalars['Bytes']['input']>>;
+  reportVault_lt?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_lte?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_not?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_not_contains?: InputMaybe<Scalars['Bytes']['input']>;
+  reportVault_not_in?: InputMaybe<Array<Scalars['Bytes']['input']>>;
   updatedAtBlock?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gt?: InputMaybe<Scalars['BigInt']['input']>;
   updatedAtBlock_gte?: InputMaybe<Scalars['BigInt']['input']>;
@@ -2249,11 +2211,11 @@ export enum ValuationOracle_OrderBy {
   CreatedAtTimestamp = 'createdAtTimestamp',
   Id = 'id',
   LatestReportId = 'latestReportId',
-  MaxChangeBps = 'maxChangeBps',
   MaxReportAge = 'maxReportAge',
+  MaxReportPriceDeviationBps = 'maxReportPriceDeviationBps',
   OracleCount = 'oracleCount',
   OracleQuorum = 'oracleQuorum',
-  RequireReportMetadataHash = 'requireReportMetadataHash',
+  ReportVault = 'reportVault',
   UpdatedAtBlock = 'updatedAtBlock',
   UpdatedAtTimestamp = 'updatedAtTimestamp',
   Vault = 'vault',
@@ -2305,6 +2267,38 @@ export enum ValuationOracle_OrderBy {
 export type ValuationReport_Filter = {
   /** Filter for the block changed event. */
   _change_block?: InputMaybe<BlockChangedFilter>;
+  activeNavAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  activeNavAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  activeNavAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  activeNavAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  activeNavAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeNavAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  activeShareSupply?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupplyRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  activeShareSupplyRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  activeShareSupplyRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  activeShareSupply_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupply_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupply_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  activeShareSupply_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupply_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupply_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  activeShareSupply_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   and?: InputMaybe<Array<InputMaybe<ValuationReport_Filter>>>;
   assetsPerShare?: InputMaybe<Scalars['BigDecimal']['input']>;
   assetsPerShareRaw?: InputMaybe<Scalars['BigInt']['input']>;
@@ -2346,6 +2340,22 @@ export type ValuationReport_Filter = {
   computedAt_lte?: InputMaybe<Scalars['BigInt']['input']>;
   computedAt_not?: InputMaybe<Scalars['BigInt']['input']>;
   computedAt_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  externalValueAssets?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssetsRaw?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_gt?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_gte?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  externalValueAssetsRaw_lt?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_lte?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_not?: InputMaybe<Scalars['BigInt']['input']>;
+  externalValueAssetsRaw_not_in?: InputMaybe<Array<Scalars['BigInt']['input']>>;
+  externalValueAssets_gt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssets_gte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssets_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
+  externalValueAssets_lt?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssets_lte?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssets_not?: InputMaybe<Scalars['BigDecimal']['input']>;
+  externalValueAssets_not_in?: InputMaybe<Array<Scalars['BigDecimal']['input']>>;
   id?: InputMaybe<Scalars['Bytes']['input']>;
   id_contains?: InputMaybe<Scalars['Bytes']['input']>;
   id_gt?: InputMaybe<Scalars['Bytes']['input']>;
@@ -2464,11 +2474,17 @@ export type ValuationReport_Filter = {
 };
 
 export enum ValuationReport_OrderBy {
+  ActiveNavAssets = 'activeNavAssets',
+  ActiveNavAssetsRaw = 'activeNavAssetsRaw',
+  ActiveShareSupply = 'activeShareSupply',
+  ActiveShareSupplyRaw = 'activeShareSupplyRaw',
   AssetsPerShare = 'assetsPerShare',
   AssetsPerShareRaw = 'assetsPerShareRaw',
   BlockNumber = 'blockNumber',
   BlockTimestamp = 'blockTimestamp',
   ComputedAt = 'computedAt',
+  ExternalValueAssets = 'externalValueAssets',
+  ExternalValueAssetsRaw = 'externalValueAssetsRaw',
   Id = 'id',
   MetadataHash = 'metadataHash',
   NavAssets = 'navAssets',
@@ -2479,11 +2495,11 @@ export enum ValuationReport_OrderBy {
   OracleCreatedAtTimestamp = 'oracle__createdAtTimestamp',
   OracleId = 'oracle__id',
   OracleLatestReportId = 'oracle__latestReportId',
-  OracleMaxChangeBps = 'oracle__maxChangeBps',
   OracleMaxReportAge = 'oracle__maxReportAge',
+  OracleMaxReportPriceDeviationBps = 'oracle__maxReportPriceDeviationBps',
   OracleOracleCount = 'oracle__oracleCount',
   OracleOracleQuorum = 'oracle__oracleQuorum',
-  OracleRequireReportMetadataHash = 'oracle__requireReportMetadataHash',
+  OracleReportVault = 'oracle__reportVault',
   OracleUpdatedAtBlock = 'oracle__updatedAtBlock',
   OracleUpdatedAtTimestamp = 'oracle__updatedAtTimestamp',
   ReportId = 'reportId',
@@ -3464,14 +3480,11 @@ export enum VaultRegistration_OrderBy {
   StrategyManagerAllocationPaused = 'strategyManager__allocationPaused',
   StrategyManagerCreatedAtBlock = 'strategyManager__createdAtBlock',
   StrategyManagerCreatedAtTimestamp = 'strategyManager__createdAtTimestamp',
-  StrategyManagerExecutionPaused = 'strategyManager__executionPaused',
   StrategyManagerId = 'strategyManager__id',
-  StrategyManagerMaxTotalStrategyDebt = 'strategyManager__maxTotalStrategyDebt',
-  StrategyManagerMaxTotalStrategyDebtRaw = 'strategyManager__maxTotalStrategyDebtRaw',
-  StrategyManagerTotalStrategyDebt = 'strategyManager__totalStrategyDebt',
-  StrategyManagerTotalStrategyDebtRaw = 'strategyManager__totalStrategyDebtRaw',
-  StrategyManagerTotalStrategyReportedAssets = 'strategyManager__totalStrategyReportedAssets',
-  StrategyManagerTotalStrategyReportedAssetsRaw = 'strategyManager__totalStrategyReportedAssetsRaw',
+  StrategyManagerTotalAllocation = 'strategyManager__totalAllocation',
+  StrategyManagerTotalAllocationCap = 'strategyManager__totalAllocationCap',
+  StrategyManagerTotalAllocationCapRaw = 'strategyManager__totalAllocationCapRaw',
+  StrategyManagerTotalAllocationRaw = 'strategyManager__totalAllocationRaw',
   StrategyManagerUpdatedAtBlock = 'strategyManager__updatedAtBlock',
   StrategyManagerUpdatedAtTimestamp = 'strategyManager__updatedAtTimestamp',
   Symbol = 'symbol',
@@ -3482,11 +3495,11 @@ export enum VaultRegistration_OrderBy {
   ValuationOracleCreatedAtTimestamp = 'valuationOracle__createdAtTimestamp',
   ValuationOracleId = 'valuationOracle__id',
   ValuationOracleLatestReportId = 'valuationOracle__latestReportId',
-  ValuationOracleMaxChangeBps = 'valuationOracle__maxChangeBps',
   ValuationOracleMaxReportAge = 'valuationOracle__maxReportAge',
+  ValuationOracleMaxReportPriceDeviationBps = 'valuationOracle__maxReportPriceDeviationBps',
   ValuationOracleOracleCount = 'valuationOracle__oracleCount',
   ValuationOracleOracleQuorum = 'valuationOracle__oracleQuorum',
-  ValuationOracleRequireReportMetadataHash = 'valuationOracle__requireReportMetadataHash',
+  ValuationOracleReportVault = 'valuationOracle__reportVault',
   ValuationOracleUpdatedAtBlock = 'valuationOracle__updatedAtBlock',
   ValuationOracleUpdatedAtTimestamp = 'valuationOracle__updatedAtTimestamp',
   Vault = 'vault',
@@ -5416,14 +5429,11 @@ export enum Vault_OrderBy {
   StrategyManagerAllocationPaused = 'strategyManager__allocationPaused',
   StrategyManagerCreatedAtBlock = 'strategyManager__createdAtBlock',
   StrategyManagerCreatedAtTimestamp = 'strategyManager__createdAtTimestamp',
-  StrategyManagerExecutionPaused = 'strategyManager__executionPaused',
   StrategyManagerId = 'strategyManager__id',
-  StrategyManagerMaxTotalStrategyDebt = 'strategyManager__maxTotalStrategyDebt',
-  StrategyManagerMaxTotalStrategyDebtRaw = 'strategyManager__maxTotalStrategyDebtRaw',
-  StrategyManagerTotalStrategyDebt = 'strategyManager__totalStrategyDebt',
-  StrategyManagerTotalStrategyDebtRaw = 'strategyManager__totalStrategyDebtRaw',
-  StrategyManagerTotalStrategyReportedAssets = 'strategyManager__totalStrategyReportedAssets',
-  StrategyManagerTotalStrategyReportedAssetsRaw = 'strategyManager__totalStrategyReportedAssetsRaw',
+  StrategyManagerTotalAllocation = 'strategyManager__totalAllocation',
+  StrategyManagerTotalAllocationCap = 'strategyManager__totalAllocationCap',
+  StrategyManagerTotalAllocationCapRaw = 'strategyManager__totalAllocationCapRaw',
+  StrategyManagerTotalAllocationRaw = 'strategyManager__totalAllocationRaw',
   StrategyManagerUpdatedAtBlock = 'strategyManager__updatedAtBlock',
   StrategyManagerUpdatedAtTimestamp = 'strategyManager__updatedAtTimestamp',
   Symbol = 'symbol',
@@ -5442,11 +5452,11 @@ export enum Vault_OrderBy {
   ValuationOracleCreatedAtTimestamp = 'valuationOracle__createdAtTimestamp',
   ValuationOracleId = 'valuationOracle__id',
   ValuationOracleLatestReportId = 'valuationOracle__latestReportId',
-  ValuationOracleMaxChangeBps = 'valuationOracle__maxChangeBps',
   ValuationOracleMaxReportAge = 'valuationOracle__maxReportAge',
+  ValuationOracleMaxReportPriceDeviationBps = 'valuationOracle__maxReportPriceDeviationBps',
   ValuationOracleOracleCount = 'valuationOracle__oracleCount',
   ValuationOracleOracleQuorum = 'valuationOracle__oracleQuorum',
-  ValuationOracleRequireReportMetadataHash = 'valuationOracle__requireReportMetadataHash',
+  ValuationOracleReportVault = 'valuationOracle__reportVault',
   ValuationOracleUpdatedAtBlock = 'valuationOracle__updatedAtBlock',
   ValuationOracleUpdatedAtTimestamp = 'valuationOracle__updatedAtTimestamp',
   VaultType = 'vaultType',
@@ -5467,7 +5477,7 @@ export type VaultsDashboardQueryVariables = Exact<{
 }>;
 
 
-export type VaultsDashboardQuery = { __typename?: 'Query', vaults: Array<{ __typename?: 'Vault', id: any, address: any, name: string, symbol: string, vaultTypeName: string, active: boolean, totalAssets: any, totalSupply: any, latestSharePrice: any, latestTvl: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, registeredAtTimestamp: any, updatedAtTimestamp: any, asset: { __typename?: 'Token', address: any, name?: string | null, symbol?: string | null, decimals?: number | null }, strategyManager: { __typename?: 'StrategyManager', address: any, totalStrategyDebt: any, totalStrategyReportedAssets: any, maxTotalStrategyDebt: any, allocationPaused: boolean, executionPaused: boolean }, valuationOracle: { __typename?: 'ValuationOracle', address: any, latestReportId: any, maxReportAge: any, maxChangeBps: any, oracleCount: any, oracleQuorum: any, requireReportMetadataHash: boolean } }>, _meta?: { __typename?: '_Meta_', hasIndexingErrors: boolean, block: { __typename?: '_Block_', number: number, timestamp?: number | null } } | null };
+export type VaultsDashboardQuery = { __typename?: 'Query', vaults: Array<{ __typename?: 'Vault', id: any, address: any, name: string, symbol: string, vaultTypeName: string, active: boolean, totalAssets: any, totalSupply: any, latestSharePrice: any, latestTvl: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, registeredAtTimestamp: any, updatedAtTimestamp: any, asset: { __typename?: 'Token', address: any, name?: string | null, symbol?: string | null, decimals?: number | null }, strategyManager: { __typename?: 'StrategyManager', address: any, totalAllocation: any, totalAllocationCap: any, allocationPaused: boolean }, valuationOracle: { __typename?: 'ValuationOracle', address: any, latestReportId: any, maxReportAge: any, maxReportPriceDeviationBps: any, oracleCount: any, oracleQuorum: any, reportVault?: any | null } }>, _meta?: { __typename?: '_Meta_', hasIndexingErrors: boolean, block: { __typename?: '_Block_', number: number, timestamp?: number | null } } | null };
 
 export type VaultDetailQueryVariables = Exact<{
   id: Scalars['ID']['input'];
@@ -5475,8 +5485,8 @@ export type VaultDetailQueryVariables = Exact<{
 }>;
 
 
-export type VaultDetailQuery = { __typename?: 'Query', vault?: { __typename?: 'Vault', id: any, address: any, name: string, symbol: string, vaultType: number, vaultTypeName: string, active: boolean, totalAssets: any, totalSupply: any, latestSharePrice: any, latestTvl: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, depositFeeRate?: any | null, redeemFeeRate?: any | null, performanceFeeRate?: any | null, protocolFeeRate?: any | null, managementFeeRate?: any | null, feeRecipient?: any | null, protocolFeeRecipient?: any | null, depositsPaused?: boolean | null, redeemsPaused?: boolean | null, registeredAtBlock: any, registeredAtTimestamp: any, registeredAtTransaction: any, updatedAtBlock: any, updatedAtTimestamp: any, asset: { __typename?: 'Token', address: any, name?: string | null, symbol?: string | null, decimals?: number | null }, strategyManager: { __typename?: 'StrategyManager', address: any, totalStrategyDebt: any, totalStrategyReportedAssets: any, maxTotalStrategyDebt: any, allocationPaused: boolean, executionPaused: boolean, updatedAtTimestamp: any }, valuationOracle: { __typename?: 'ValuationOracle', address: any, latestReportId: any, maxReportAge: any, maxChangeBps: any, oracleCount: any, oracleQuorum: any, requireReportMetadataHash: boolean, updatedAtTimestamp: any }, roles: Array<{ __typename?: 'VaultRole', id: any, role: any, roleName?: string | null, activeAccountCount: any, updatedAtTimestamp: any, accounts: Array<{ __typename?: 'VaultRoleAccount', id: any, account: any, active: boolean, grantedAtTimestamp?: any | null, grantedBy?: any | null, updatedAtTimestamp: any }> }>, roleAccounts: Array<{ __typename?: 'VaultRoleAccount', id: any, account: any, role: any, roleName?: string | null, active: boolean, grantedAtTimestamp?: any | null, grantedBy?: any | null, updatedAtTimestamp: any }>, accessControlEvents: Array<{ __typename?: 'VaultAccessControlEvent', id: any, type: string, role: any, roleName?: string | null, account?: any | null, sender?: any | null, previousAdminRole?: any | null, previousAdminRoleName?: string | null, newAdminRole?: any | null, newAdminRoleName?: string | null, blockTimestamp: any, transactionHash: any }>, snapshots: Array<{ __typename?: 'VaultMetricSnapshot', id: any, source: string, sharePrice: any, tvl: any, totalAssets: any, totalSupply: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, assetsPerShare?: any | null, navAssets?: any | null, reportId?: any | null, blockNumber: any, blockTimestamp: any, transactionHash: any }> } | null, valuationReports: Array<{ __typename?: 'ValuationReport', id: any, reportId: any, navAssets: any, assetsPerShare?: any | null, metadataHash: any, computedAt: any, submittedAt: any, reporter: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, depositEpoches: Array<{ __typename?: 'DepositEpoch', id: any, epochId: any, reportId: any, assets: any, shares: any, assetsPerShare: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, redeemEpoches: Array<{ __typename?: 'RedeemEpoch', id: any, epochId: any, reportId: any, shares: any, assets: any, assetsPerShare: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, depositRequests: Array<{ __typename?: 'DepositRequest', id: any, requestId: any, controller: any, owner: any, sender: any, assets: any, canceled: boolean, createdAtTimestamp: any, updatedAtTimestamp: any, createdAtTransaction: any }>, redeemRequests: Array<{ __typename?: 'RedeemRequest', id: any, requestId: any, controller: any, owner: any, sender: any, shares: any, canceled: boolean, createdAtTimestamp: any, updatedAtTimestamp: any, createdAtTransaction: any }>, strategies: Array<{ __typename?: 'Strategy', id: any, address: any, allowed: boolean, kind: number, debtAssets: any, reportedAssets: any, maxDebtAssets: any, updatedAtTimestamp: any }>, _meta?: { __typename?: '_Meta_', hasIndexingErrors: boolean, block: { __typename?: '_Block_', number: number, timestamp?: number | null } } | null };
+export type VaultDetailQuery = { __typename?: 'Query', vault?: { __typename?: 'Vault', id: any, address: any, name: string, symbol: string, vaultType: number, vaultTypeName: string, active: boolean, totalAssets: any, totalSupply: any, latestSharePrice: any, latestTvl: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, depositFeeRate?: any | null, redeemFeeRate?: any | null, performanceFeeRate?: any | null, protocolFeeRate?: any | null, managementFeeRate?: any | null, feeRecipient?: any | null, protocolFeeRecipient?: any | null, depositsPaused?: boolean | null, redeemsPaused?: boolean | null, registeredAtBlock: any, registeredAtTimestamp: any, registeredAtTransaction: any, updatedAtBlock: any, updatedAtTimestamp: any, asset: { __typename?: 'Token', address: any, name?: string | null, symbol?: string | null, decimals?: number | null }, strategyManager: { __typename?: 'StrategyManager', address: any, totalAllocation: any, totalAllocationCap: any, allocationPaused: boolean, updatedAtTimestamp: any }, valuationOracle: { __typename?: 'ValuationOracle', address: any, latestReportId: any, maxReportAge: any, maxReportPriceDeviationBps: any, oracleCount: any, oracleQuorum: any, reportVault?: any | null, updatedAtTimestamp: any }, roles: Array<{ __typename?: 'VaultRole', id: any, role: any, roleName?: string | null, activeAccountCount: any, updatedAtTimestamp: any, accounts: Array<{ __typename?: 'VaultRoleAccount', id: any, account: any, active: boolean, grantedAtTimestamp?: any | null, grantedBy?: any | null, updatedAtTimestamp: any }> }>, roleAccounts: Array<{ __typename?: 'VaultRoleAccount', id: any, account: any, role: any, roleName?: string | null, active: boolean, grantedAtTimestamp?: any | null, grantedBy?: any | null, updatedAtTimestamp: any }>, accessControlEvents: Array<{ __typename?: 'VaultAccessControlEvent', id: any, type: string, role: any, roleName?: string | null, account?: any | null, sender?: any | null, previousAdminRole?: any | null, previousAdminRoleName?: string | null, newAdminRole?: any | null, newAdminRoleName?: string | null, blockTimestamp: any, transactionHash: any }>, snapshots: Array<{ __typename?: 'VaultMetricSnapshot', id: any, source: string, sharePrice: any, tvl: any, totalAssets: any, totalSupply: any, cumulativeDepositAssets: any, cumulativeWithdrawAssets: any, netFlowAssets: any, yieldEarnedAssets: any, assetsPerShare?: any | null, navAssets?: any | null, reportId?: any | null, blockNumber: any, blockTimestamp: any, transactionHash: any }> } | null, valuationReports: Array<{ __typename?: 'ValuationReport', id: any, reportId: any, externalValueAssets: any, activeNavAssets: any, activeShareSupply: any, navAssets: any, assetsPerShare: any, metadataHash: any, computedAt: any, submittedAt: any, reporter: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, depositEpoches: Array<{ __typename?: 'DepositEpoch', id: any, epochId: any, reportId: any, assets: any, shares: any, assetsPerShare: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, redeemEpoches: Array<{ __typename?: 'RedeemEpoch', id: any, epochId: any, reportId: any, shares: any, assets: any, assetsPerShare: any, blockNumber: any, blockTimestamp: any, transactionHash: any }>, depositRequests: Array<{ __typename?: 'DepositRequest', id: any, requestId: any, controller: any, owner: any, sender: any, assets: any, canceled: boolean, createdAtTimestamp: any, updatedAtTimestamp: any, createdAtTransaction: any }>, redeemRequests: Array<{ __typename?: 'RedeemRequest', id: any, requestId: any, controller: any, owner: any, sender: any, shares: any, canceled: boolean, createdAtTimestamp: any, updatedAtTimestamp: any, createdAtTransaction: any }>, strategies: Array<{ __typename?: 'Strategy', id: any, address: any, allowed: boolean, kind: number, allocation: any, allocationCap: any, updatedAtTimestamp: any }>, _meta?: { __typename?: '_Meta_', hasIndexingErrors: boolean, block: { __typename?: '_Block_', number: number, timestamp?: number | null } } | null };
 
 
-export const VaultsDashboardDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"VaultsDashboard"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"vaultIds"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Bytes"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vaults"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"100"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"registeredAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vaultIds"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"vaultTypeName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"latestSharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"latestTvl"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"asset"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"decimals"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategyManager"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"totalStrategyDebt"}},{"kind":"Field","name":{"kind":"Name","value":"totalStrategyReportedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"maxTotalStrategyDebt"}},{"kind":"Field","name":{"kind":"Name","value":"allocationPaused"}},{"kind":"Field","name":{"kind":"Name","value":"executionPaused"}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationOracle"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"latestReportId"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportAge"}},{"kind":"Field","name":{"kind":"Name","value":"maxChangeBps"}},{"kind":"Field","name":{"kind":"Name","value":"oracleCount"}},{"kind":"Field","name":{"kind":"Name","value":"oracleQuorum"}},{"kind":"Field","name":{"kind":"Name","value":"requireReportMetadataHash"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"_meta"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"block"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"number"}},{"kind":"Field","name":{"kind":"Name","value":"timestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasIndexingErrors"}}]}}]}}]} as unknown as DocumentNode<VaultsDashboardQuery, VaultsDashboardQueryVariables>;
-export const VaultDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"VaultDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"vault"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vault"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"vaultType"}},{"kind":"Field","name":{"kind":"Name","value":"vaultTypeName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"latestSharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"latestTvl"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"depositFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"redeemFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"performanceFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"protocolFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"managementFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"feeRecipient"}},{"kind":"Field","name":{"kind":"Name","value":"protocolFeeRecipient"}},{"kind":"Field","name":{"kind":"Name","value":"depositsPaused"}},{"kind":"Field","name":{"kind":"Name","value":"redeemsPaused"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtBlock"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTransaction"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtBlock"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"asset"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"decimals"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategyManager"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"totalStrategyDebt"}},{"kind":"Field","name":{"kind":"Name","value":"totalStrategyReportedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"maxTotalStrategyDebt"}},{"kind":"Field","name":{"kind":"Name","value":"allocationPaused"}},{"kind":"Field","name":{"kind":"Name","value":"executionPaused"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationOracle"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"latestReportId"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportAge"}},{"kind":"Field","name":{"kind":"Name","value":"maxChangeBps"}},{"kind":"Field","name":{"kind":"Name","value":"oracleCount"}},{"kind":"Field","name":{"kind":"Name","value":"oracleQuorum"}},{"kind":"Field","name":{"kind":"Name","value":"requireReportMetadataHash"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"roleName"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"asc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"activeAccountCount"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"accounts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"active"},"value":{"kind":"BooleanValue","value":true}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"grantedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"grantedBy"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"roleAccounts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"active"},"value":{"kind":"BooleanValue","value":true}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"grantedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"grantedBy"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"accessControlEvents"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"blockTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"previousAdminRole"}},{"kind":"Field","name":{"kind":"Name","value":"previousAdminRoleName"}},{"kind":"Field","name":{"kind":"Name","value":"newAdminRole"}},{"kind":"Field","name":{"kind":"Name","value":"newAdminRoleName"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"snapshots"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"8"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"blockTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"sharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"tvl"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"navAssets"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationReports"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"reportId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"navAssets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"metadataHash"}},{"kind":"Field","name":{"kind":"Name","value":"computedAt"}},{"kind":"Field","name":{"kind":"Name","value":"submittedAt"}},{"kind":"Field","name":{"kind":"Name","value":"reporter"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"depositEpoches"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"epochId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"epochId"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"redeemEpoches"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"epochId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"epochId"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"depositRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"requestId"}},{"kind":"Field","name":{"kind":"Name","value":"controller"}},{"kind":"Field","name":{"kind":"Name","value":"owner"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"canceled"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTransaction"}}]}},{"kind":"Field","name":{"kind":"Name","value":"redeemRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"requestId"}},{"kind":"Field","name":{"kind":"Name","value":"controller"}},{"kind":"Field","name":{"kind":"Name","value":"owner"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"canceled"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTransaction"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategies"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"allowed"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"debtAssets"}},{"kind":"Field","name":{"kind":"Name","value":"reportedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"maxDebtAssets"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"_meta"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"block"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"number"}},{"kind":"Field","name":{"kind":"Name","value":"timestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasIndexingErrors"}}]}}]}}]} as unknown as DocumentNode<VaultDetailQuery, VaultDetailQueryVariables>;
+export const VaultsDashboardDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"VaultsDashboard"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"vaultIds"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Bytes"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vaults"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"100"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"registeredAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"id_in"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vaultIds"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"vaultTypeName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"latestSharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"latestTvl"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"asset"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"decimals"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategyManager"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"totalAllocation"}},{"kind":"Field","name":{"kind":"Name","value":"totalAllocationCap"}},{"kind":"Field","name":{"kind":"Name","value":"allocationPaused"}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationOracle"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"latestReportId"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportAge"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportPriceDeviationBps"}},{"kind":"Field","name":{"kind":"Name","value":"oracleCount"}},{"kind":"Field","name":{"kind":"Name","value":"oracleQuorum"}},{"kind":"Field","name":{"kind":"Name","value":"reportVault"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"_meta"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"block"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"number"}},{"kind":"Field","name":{"kind":"Name","value":"timestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasIndexingErrors"}}]}}]}}]} as unknown as DocumentNode<VaultsDashboardQuery, VaultsDashboardQueryVariables>;
+export const VaultDetailDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"VaultDetail"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"id"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"ID"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"vault"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"vault"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"id"},"value":{"kind":"Variable","name":{"kind":"Name","value":"id"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"vaultType"}},{"kind":"Field","name":{"kind":"Name","value":"vaultTypeName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"latestSharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"latestTvl"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"depositFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"redeemFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"performanceFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"protocolFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"managementFeeRate"}},{"kind":"Field","name":{"kind":"Name","value":"feeRecipient"}},{"kind":"Field","name":{"kind":"Name","value":"protocolFeeRecipient"}},{"kind":"Field","name":{"kind":"Name","value":"depositsPaused"}},{"kind":"Field","name":{"kind":"Name","value":"redeemsPaused"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtBlock"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"registeredAtTransaction"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtBlock"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"asset"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"name"}},{"kind":"Field","name":{"kind":"Name","value":"symbol"}},{"kind":"Field","name":{"kind":"Name","value":"decimals"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategyManager"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"totalAllocation"}},{"kind":"Field","name":{"kind":"Name","value":"totalAllocationCap"}},{"kind":"Field","name":{"kind":"Name","value":"allocationPaused"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationOracle"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"latestReportId"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportAge"}},{"kind":"Field","name":{"kind":"Name","value":"maxReportPriceDeviationBps"}},{"kind":"Field","name":{"kind":"Name","value":"oracleCount"}},{"kind":"Field","name":{"kind":"Name","value":"oracleQuorum"}},{"kind":"Field","name":{"kind":"Name","value":"reportVault"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"roles"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"roleName"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"asc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"activeAccountCount"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"accounts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"active"},"value":{"kind":"BooleanValue","value":true}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"grantedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"grantedBy"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"roleAccounts"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"active"},"value":{"kind":"BooleanValue","value":true}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"active"}},{"kind":"Field","name":{"kind":"Name","value":"grantedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"grantedBy"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"accessControlEvents"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"blockTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"type"}},{"kind":"Field","name":{"kind":"Name","value":"role"}},{"kind":"Field","name":{"kind":"Name","value":"roleName"}},{"kind":"Field","name":{"kind":"Name","value":"account"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"previousAdminRole"}},{"kind":"Field","name":{"kind":"Name","value":"previousAdminRoleName"}},{"kind":"Field","name":{"kind":"Name","value":"newAdminRole"}},{"kind":"Field","name":{"kind":"Name","value":"newAdminRoleName"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"snapshots"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"8"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"blockTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"source"}},{"kind":"Field","name":{"kind":"Name","value":"sharePrice"}},{"kind":"Field","name":{"kind":"Name","value":"tvl"}},{"kind":"Field","name":{"kind":"Name","value":"totalAssets"}},{"kind":"Field","name":{"kind":"Name","value":"totalSupply"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeDepositAssets"}},{"kind":"Field","name":{"kind":"Name","value":"cumulativeWithdrawAssets"}},{"kind":"Field","name":{"kind":"Name","value":"netFlowAssets"}},{"kind":"Field","name":{"kind":"Name","value":"yieldEarnedAssets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"navAssets"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"valuationReports"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"reportId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"externalValueAssets"}},{"kind":"Field","name":{"kind":"Name","value":"activeNavAssets"}},{"kind":"Field","name":{"kind":"Name","value":"activeShareSupply"}},{"kind":"Field","name":{"kind":"Name","value":"navAssets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"metadataHash"}},{"kind":"Field","name":{"kind":"Name","value":"computedAt"}},{"kind":"Field","name":{"kind":"Name","value":"submittedAt"}},{"kind":"Field","name":{"kind":"Name","value":"reporter"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"depositEpoches"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"epochId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"epochId"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"redeemEpoches"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"epochId"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"epochId"}},{"kind":"Field","name":{"kind":"Name","value":"reportId"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"assetsPerShare"}},{"kind":"Field","name":{"kind":"Name","value":"blockNumber"}},{"kind":"Field","name":{"kind":"Name","value":"blockTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"transactionHash"}}]}},{"kind":"Field","name":{"kind":"Name","value":"depositRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"requestId"}},{"kind":"Field","name":{"kind":"Name","value":"controller"}},{"kind":"Field","name":{"kind":"Name","value":"owner"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"assets"}},{"kind":"Field","name":{"kind":"Name","value":"canceled"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTransaction"}}]}},{"kind":"Field","name":{"kind":"Name","value":"redeemRequests"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"10"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"requestId"}},{"kind":"Field","name":{"kind":"Name","value":"controller"}},{"kind":"Field","name":{"kind":"Name","value":"owner"}},{"kind":"Field","name":{"kind":"Name","value":"sender"}},{"kind":"Field","name":{"kind":"Name","value":"shares"}},{"kind":"Field","name":{"kind":"Name","value":"canceled"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}},{"kind":"Field","name":{"kind":"Name","value":"createdAtTransaction"}}]}},{"kind":"Field","name":{"kind":"Name","value":"strategies"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"first"},"value":{"kind":"IntValue","value":"20"}},{"kind":"Argument","name":{"kind":"Name","value":"orderBy"},"value":{"kind":"EnumValue","value":"updatedAtTimestamp"}},{"kind":"Argument","name":{"kind":"Name","value":"orderDirection"},"value":{"kind":"EnumValue","value":"desc"}},{"kind":"Argument","name":{"kind":"Name","value":"where"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"vault"},"value":{"kind":"Variable","name":{"kind":"Name","value":"vault"}}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"id"}},{"kind":"Field","name":{"kind":"Name","value":"address"}},{"kind":"Field","name":{"kind":"Name","value":"allowed"}},{"kind":"Field","name":{"kind":"Name","value":"kind"}},{"kind":"Field","name":{"kind":"Name","value":"allocation"}},{"kind":"Field","name":{"kind":"Name","value":"allocationCap"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAtTimestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"_meta"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"block"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"number"}},{"kind":"Field","name":{"kind":"Name","value":"timestamp"}}]}},{"kind":"Field","name":{"kind":"Name","value":"hasIndexingErrors"}}]}}]}}]} as unknown as DocumentNode<VaultDetailQuery, VaultDetailQueryVariables>;

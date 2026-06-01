@@ -11,7 +11,7 @@ export const strategyManagerAbi = [
   },
   {
     type: "function",
-    name: "allocateToStrategy",
+    name: "allocate",
     inputs: [
       { name: "strategy", type: "address", internalType: "address" },
       { name: "assets", type: "uint256", internalType: "uint256" }
@@ -21,7 +21,7 @@ export const strategyManagerAbi = [
   },
   {
     type: "function",
-    name: "returnFromStrategy",
+    name: "returnAssets",
     inputs: [
       { name: "strategy", type: "address", internalType: "address" },
       { name: "assets", type: "uint256", internalType: "uint256" }
@@ -31,14 +31,14 @@ export const strategyManagerAbi = [
   },
   {
     type: "function",
-    name: "totalStrategyDebt",
+    name: "totalAllocation",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view"
   },
   {
     type: "function",
-    name: "maxTotalStrategyDebt",
+    name: "totalAllocationCap",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view"

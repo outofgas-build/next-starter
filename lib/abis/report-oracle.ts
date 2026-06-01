@@ -6,17 +6,7 @@ export const reportOracleAbi = [
     type: "function",
     name: "submitReport",
     inputs: [
-      { name: "navAssets", type: "uint256", internalType: "uint256" },
-      { name: "computedAt", type: "uint64", internalType: "uint64" }
-    ],
-    outputs: [{ name: "reportId", type: "uint256", internalType: "uint256" }],
-    stateMutability: "nonpayable"
-  },
-  {
-    type: "function",
-    name: "submitReport",
-    inputs: [
-      { name: "navAssets", type: "uint256", internalType: "uint256" },
+      { name: "externalValueAssets", type: "uint256", internalType: "uint256" },
       { name: "computedAt", type: "uint64", internalType: "uint64" },
       { name: "metadataHash", type: "bytes32", internalType: "bytes32" }
     ],

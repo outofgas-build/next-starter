@@ -27,20 +27,18 @@ export const VAULTS_DASHBOARD = graphql(`
       }
       strategyManager {
         address
-        totalStrategyDebt
-        totalStrategyReportedAssets
-        maxTotalStrategyDebt
+        totalAllocation
+        totalAllocationCap
         allocationPaused
-        executionPaused
       }
       valuationOracle {
         address
         latestReportId
         maxReportAge
-        maxChangeBps
+        maxReportPriceDeviationBps
         oracleCount
         oracleQuorum
-        requireReportMetadataHash
+        reportVault
       }
     }
     _meta {
@@ -93,21 +91,19 @@ export const VAULT_DETAIL = graphql(`
       }
       strategyManager {
         address
-        totalStrategyDebt
-        totalStrategyReportedAssets
-        maxTotalStrategyDebt
+        totalAllocation
+        totalAllocationCap
         allocationPaused
-        executionPaused
         updatedAtTimestamp
       }
       valuationOracle {
         address
         latestReportId
         maxReportAge
-        maxChangeBps
+        maxReportPriceDeviationBps
         oracleCount
         oracleQuorum
-        requireReportMetadataHash
+        reportVault
         updatedAtTimestamp
       }
       roles(first: 20, orderBy: roleName, orderDirection: asc) {
@@ -171,6 +167,9 @@ export const VAULT_DETAIL = graphql(`
     valuationReports(first: 10, orderBy: reportId, orderDirection: desc, where: { vault: $vault }) {
       id
       reportId
+      externalValueAssets
+      activeNavAssets
+      activeShareSupply
       navAssets
       assetsPerShare
       metadataHash
@@ -232,9 +231,8 @@ export const VAULT_DETAIL = graphql(`
       address
       allowed
       kind
-      debtAssets
-      reportedAssets
-      maxDebtAssets
+      allocation
+      allocationCap
       updatedAtTimestamp
     }
     _meta {

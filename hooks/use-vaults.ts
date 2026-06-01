@@ -54,7 +54,7 @@ export type VaultContract = {
   trustedAssetsPerShare: string;
   vaultIdleBalance: string;
   availableIdleAssetsForStrategy: string;
-  strategyDebt: string;
+  strategyAllocation: string;
   pendingRedeemShares: string;
   estimatedPendingRedeemAssets: string;
   totalPendingDepositAssets: string;
@@ -391,7 +391,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
           {
             address: strategyManager,
             abi: strategyManagerAbi,
-            functionName: "totalStrategyDebt"
+            functionName: "totalAllocation"
           }
         ]
       : []),
@@ -428,7 +428,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     .filter((epoch) => !epoch.isEmpty);
   const vaultIdleBalance = secondaryResults[secondaryResultIndex++] as bigint;
   const assetDecimals = secondaryResults[secondaryResultIndex++] as number;
-  const strategyDebt = hasStrategyManager ? (secondaryResults[secondaryResultIndex++] as bigint) : BigInt(0);
+  const strategyAllocation = hasStrategyManager ? (secondaryResults[secondaryResultIndex++] as bigint) : BigInt(0);
   const feeManagerData = hasFeeManager
     ? (secondaryResults.slice(secondaryResultIndex, secondaryResultIndex + 14) as FeeManagerData)
     : null;
@@ -511,7 +511,7 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
         }
       : null,
     vaultIdleBalance: vaultIdleBalance.toString(),
-    strategyDebt: strategyDebt.toString()
+    strategyAllocation: strategyAllocation.toString()
   };
 }
 

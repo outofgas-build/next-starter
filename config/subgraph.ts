@@ -2,7 +2,7 @@ import { base, bsc, monad } from "viem/chains";
 
 export const subgraphUrlsByChainId: Record<number, string> = {
   [base.id]:
-    "https://api.goldsky.com/api/public/project_cma5n10r0vrqg01tv8ajb6gsc/subgraphs/venzo-subgraph-base/0.2.0/gn",
+    "https://api.goldsky.com/api/public/project_cma5n10r0vrqg01tv8ajb6gsc/subgraphs/venzo-subgraph-base/0.2.1/gn",
   [monad.id]:
     "https://api.goldsky.com/api/public/project_cma5n10r0vrqg01tv8ajb6gsc/subgraphs/venzo-subgraph-monad/0.2.0/gn",
   [bsc.id]:

@@ -23,7 +23,7 @@ const monadRpcUrl = getEnv("NEXT_PUBLIC_MONAD_RPC_URL");
 export const VAULT_CONFIGS: VaultConfig[] = [
   {
     id: "MSTAT",
-    address: "0xc2B753BaAEd6E55994DE423F86E59042DC956787",
+    address: "0xd6798b9e2aBb7Ad71398d68C823bCba10929D37c",
     vaultType: "syncDepositAsyncRedeem",
     chain: base,
     subgraphUrl: getSubgraphUrl(base.id),

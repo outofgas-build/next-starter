@@ -1,6 +1,16 @@
 "use client";
 
-import { ArrowDownLeft, ArrowUpRight, CheckCircle2, FileText, LockKeyhole, Play, Plus, Square } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  CheckCircle2,
+  CirclePause,
+  CirclePlay,
+  FileText,
+  LockKeyhole,
+  Plus,
+  Tag
+} from "lucide-react";
 import { useParams } from "next/navigation";
 import { useWallets } from "@privy-io/react-auth";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -15,6 +25,7 @@ import {
   http,
   isAddress,
   parseUnits,
+  zeroHash,
   type Address,
   type Hex
 } from "viem";
@@ -26,7 +37,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyButton } from "@/components/ui/copy-button";
 import { PageContainer } from "@/components/page-container";
-import { VaultAssetBackdrop, VaultIcon, VaultSymbolTag } from "@/components/vault-icon";
+import { VaultAssetBackdrop, VaultIcon } from "@/components/vault-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -66,14 +77,6 @@ function formatFeeRate(value?: string | number | null) {
   return `${(numericValue / 10_000).toLocaleString("en-US", {
     maximumFractionDigits: 4
   })}%`;
-}
-
-function formatVaultTypeName(value: string) {
-  if (value === "SyncDepositAsyncRedeem" || value === "Sync Deposit Async Redeem") {
-    return "Async Redeem Vault";
-  }
-
-  return value;
 }
 
 function getEpochStatusBadgeClass(status: string) {
@@ -295,13 +298,10 @@ export default function VaultDetailPage() {
   const [returnStrategyAddress, setReturnStrategyAddress] = useState("");
   const [returnAssets, setReturnAssets] = useState("");
   const [isReturningStrategy, setIsReturningStrategy] = useState(false);
-  const [closeType, setCloseType] = useState<OperationType>("redeem");
-  const [closeEpochId, setCloseEpochId] = useState("");
-  const [isClosingEpoch, setIsClosingEpoch] = useState(false);
-  const [settleType, setSettleType] = useState<OperationType>("redeem");
-  const [settleEpochId, setSettleEpochId] = useState("");
-  const [isSettlingEpoch, setIsSettlingEpoch] = useState(false);
-  const [reportNavAssets, setReportNavAssets] = useState("");
+  const [closingEpochKey, setClosingEpochKey] = useState<string | null>(null);
+  const [pricingEpochKey, setPricingEpochKey] = useState<string | null>(null);
+  const [settlingEpochKey, setSettlingEpochKey] = useState<string | null>(null);
+  const [reportExternalValueAssets, setReportExternalValueAssets] = useState("");
   const [reportComputedAt, setReportComputedAt] = useState(() => Math.floor(Date.now() / 1000).toString());
   const [reportMetadataHash, setReportMetadataHash] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
@@ -309,7 +309,6 @@ export default function VaultDetailPage() {
 
   const assetSymbol = vault?.asset.symbol ?? "asset";
   const assetDecimals = vault?.asset.decimals ?? 18;
-  const latestReportId = vault?.valuationOracle.latestReportId ?? "";
   const idleReserveStatus = getIdleReserveStatus(vaultContract);
   const supportsAsyncDeposits = vault?.vaultTypeName.toLowerCase().includes("async deposit") ?? false;
   const formatAssetAmount = (value?: string | number | null) =>
@@ -461,7 +460,7 @@ export default function VaultDetailPage() {
       const hash = await walletClient.writeContract({
         address: vault.strategyManager.address as Address,
         abi: strategyManagerAbi,
-        functionName: "allocateToStrategy",
+        functionName: "allocate",
         args: [normalizedStrategyAddress as Address, assets]
       });
 
@@ -510,9 +509,9 @@ export default function VaultDetailPage() {
       return;
     }
 
-    const totalStrategyDebt = BigInt(vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt);
-    if (assets > totalStrategyDebt) {
-      toast.error("Assets exceed total strategy debt.");
+    const totalStrategyAllocation = BigInt(vaultContract?.strategyAllocation ?? vault.strategyManager.totalAllocation);
+    if (assets > totalStrategyAllocation) {
+      toast.error("Assets exceed total strategy allocation.");
       return;
     }
 
@@ -565,7 +564,7 @@ export default function VaultDetailPage() {
       const returnHash = await walletClient.writeContract({
         address: strategyManagerAddress,
         abi: strategyManagerAbi,
-        functionName: "returnFromStrategy",
+        functionName: "returnAssets",
         args: [normalizedStrategyAddress as Address, assets]
       });
 
@@ -586,16 +585,14 @@ export default function VaultDetailPage() {
     }
   }
 
-  async function handleCloseSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleCloseEpoch(type: OperationType, epochIdValue: string) {
     if (!vault || !vaultConfig) return;
 
-    const functionName = closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch";
+    const functionName = type === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch";
 
     let epochId: bigint;
     try {
-      epochId = BigInt(closeEpochId.trim());
+      epochId = BigInt(epochIdValue);
     } catch {
       toast.error("Enter epoch ID as a raw integer.");
       return;
@@ -613,7 +610,7 @@ export default function VaultDetailPage() {
     }
 
     try {
-      setIsClosingEpoch(true);
+      setClosingEpochKey(`${type}:${epochIdValue}`);
       await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
@@ -631,7 +628,6 @@ export default function VaultDetailPage() {
       toast.success("Close epoch transaction submitted.", {
         description: hash
       });
-      setCloseEpochId("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
@@ -640,20 +636,18 @@ export default function VaultDetailPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Close epoch transaction failed.");
     } finally {
-      setIsClosingEpoch(false);
+      setClosingEpochKey(null);
     }
   }
 
-  async function handleSettleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
+  async function handleSettleEpoch(type: OperationType, epochIdValue: string) {
     if (!vault || !vaultConfig) return;
 
-    const functionName = settleType === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch";
+    const functionName = type === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch";
 
     let epochId: bigint;
     try {
-      epochId = BigInt(settleEpochId.trim());
+      epochId = BigInt(epochIdValue);
     } catch {
       toast.error("Enter epoch ID as a raw integer.");
       return;
@@ -671,7 +665,7 @@ export default function VaultDetailPage() {
     }
 
     try {
-      setIsSettlingEpoch(true);
+      setSettlingEpochKey(`${type}:${epochIdValue}`);
       await wallet.switchChain(vaultConfig.chain.id);
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
@@ -689,7 +683,6 @@ export default function VaultDetailPage() {
       toast.success("Settle epoch transaction submitted.", {
         description: hash
       });
-      setSettleEpochId("");
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
         queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
@@ -698,7 +691,60 @@ export default function VaultDetailPage() {
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Settle epoch transaction failed.");
     } finally {
-      setIsSettlingEpoch(false);
+      setSettlingEpochKey(null);
+    }
+  }
+
+  async function handlePriceRedeemEpoch(epochIdValue: string) {
+    if (!vault || !vaultConfig) return;
+
+    let epochId: bigint;
+    try {
+      epochId = BigInt(epochIdValue);
+    } catch {
+      toast.error("Enter epoch ID as a raw integer.");
+      return;
+    }
+
+    if (epochId < BigInt(0)) {
+      toast.error("Epoch ID cannot be negative.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before pricing an epoch.");
+      return;
+    }
+
+    try {
+      setPricingEpochKey(`redeem:${epochIdValue}`);
+      await wallet.switchChain(vaultConfig.chain.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: vaultConfig.chain,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.address as Address,
+        abi: vaultAbi,
+        functionName: "priceRedeemEpoch",
+        args: [epochId]
+      });
+
+      toast.success("Price epoch transaction submitted.", {
+        description: hash
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Price epoch transaction failed.");
+    } finally {
+      setPricingEpochKey(null);
     }
   }
 
@@ -712,15 +758,15 @@ export default function VaultDetailPage() {
       return;
     }
 
-    const parsedNavAssets = parseFormattedAssetUnits(reportNavAssets, assetDecimals);
-    if (parsedNavAssets === null) {
-      toast.error(`Enter NAV assets as a ${assetSymbol} amount.`);
+    const parsedExternalValueAssets = parseFormattedAssetUnits(reportExternalValueAssets, assetDecimals);
+    if (parsedExternalValueAssets === null) {
+      toast.error(`Enter external account value as a ${assetSymbol} amount.`);
       return;
     }
-    const navAssets = parsedNavAssets;
+    const externalValueAssets = parsedExternalValueAssets;
 
-    if (navAssets < BigInt(0)) {
-      toast.error("NAV assets cannot be negative.");
+    if (externalValueAssets < BigInt(0)) {
+      toast.error("External account value cannot be negative.");
       return;
     }
 
@@ -750,11 +796,7 @@ export default function VaultDetailPage() {
     }
 
     const normalizedMetadataHash = reportMetadataHash.trim();
-    const metadataHash = normalizedMetadataHash || undefined;
-    if (vault.valuationOracle.requireReportMetadataHash && !metadataHash) {
-      toast.error("Metadata hash is required for this oracle.");
-      return;
-    }
+    const metadataHash = normalizedMetadataHash || zeroHash;
 
     if (metadataHash && !bytes32Pattern.test(metadataHash)) {
       toast.error("Metadata hash must be a 32-byte hex value.");
@@ -776,24 +818,17 @@ export default function VaultDetailPage() {
         chain: vaultConfig.chain,
         transport: custom(provider)
       });
-      const hash = metadataHash
-        ? await walletClient.writeContract({
-            address: vault.valuationOracle.address as Address,
-            abi: reportOracleAbi,
-            functionName: "submitReport",
-            args: [navAssets, computedAt, metadataHash as Hex]
-          })
-        : await walletClient.writeContract({
-            address: vault.valuationOracle.address as Address,
-            abi: reportOracleAbi,
-            functionName: "submitReport",
-            args: [navAssets, computedAt]
-          });
+      const hash = await walletClient.writeContract({
+        address: vault.valuationOracle.address as Address,
+        abi: reportOracleAbi,
+        functionName: "submitReport",
+        args: [externalValueAssets, computedAt, metadataHash as Hex]
+      });
 
       toast.success("Report transaction submitted.", {
         description: hash
       });
-      setReportNavAssets("");
+      setReportExternalValueAssets("");
       setReportMetadataHash("");
       setReportComputedAt(Math.floor(Date.now() / 1000).toString());
       await Promise.all([
@@ -854,7 +889,8 @@ export default function VaultDetailPage() {
   const liveTotalSupply = vaultContract?.totalSupply ?? vault.totalSupply;
   const isVaultPaused = vaultContract?.paused ?? false;
   const hasVaultPauseState = vaultContract !== undefined;
-  const vaultTypeName = formatVaultTypeName(vault.vaultTypeName);
+  const VaultPauseIcon = isVaultPaused ? CirclePlay : CirclePause;
+  const vaultPauseActionLabel = isTogglingPause ? "Submitting..." : isVaultPaused ? "Unpause Vault" : "Pause";
   const feeManager = vaultContract?.feeManager;
   const feeValues = {
     entryFeeRate: feeManager?.entryFeeRate ?? vault.depositFeeRate,
@@ -869,8 +905,6 @@ export default function VaultDetailPage() {
     protocolFeeRecipient: feeManager?.protocolFeeRecipient ?? vault.protocolFeeRecipient
   };
   const depositEpochCards = vaultContract?.depositEpochs ?? [];
-  const latestUnsettledRedeemEpochId =
-    vaultContract?.latestUnsettledRedeemEpochId ?? vaultContract?.currentRedeemEpochId;
   const redeemEpochCards = vaultContract?.redeemEpochs ?? [];
   const latestReport = data.valuationReports[0];
   const latestReportTimestamp = latestReport
@@ -919,6 +953,73 @@ export default function VaultDetailPage() {
     ...epoch,
     settledEpoch: getSettledRedeemEpoch(epoch.epochId)
   }));
+  const renderEpochActionCell = ({
+    type,
+    epochId,
+    status,
+    isLatestEpoch
+  }: {
+    type: OperationType;
+    epochId: string;
+    status: string;
+    isLatestEpoch: boolean;
+  }) => {
+    const actionKey = `${type}:${epochId}`;
+    const canClose = isLatestEpoch && status === "Open";
+    const canPrice = type === "redeem" && status === "Closed";
+    const canSettle = type === "deposit" ? status === "Closed" : status === "Priced";
+
+    if (!canClose && !canPrice && !canSettle) {
+      return <span className="text-sm text-muted-foreground">--</span>;
+    }
+
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        {canClose ? (
+          <AuthGuard buttonClassName="w-auto">
+            <Button
+              disabled={closingEpochKey !== null}
+              onClick={() => handleCloseEpoch(type, epochId)}
+              size="xs"
+              type="button"
+              variant="destructive"
+            >
+              <LockKeyhole />
+              {closingEpochKey === actionKey ? "Closing..." : "Close"}
+            </Button>
+          </AuthGuard>
+        ) : null}
+        {canPrice ? (
+          <AuthGuard buttonClassName="w-auto">
+            <Button
+              disabled={pricingEpochKey !== null}
+              onClick={() => handlePriceRedeemEpoch(epochId)}
+              size="xs"
+              type="button"
+              variant="outline"
+            >
+              <Tag />
+              {pricingEpochKey === actionKey ? "Pricing..." : "Price"}
+            </Button>
+          </AuthGuard>
+        ) : null}
+        {canSettle ? (
+          <AuthGuard buttonClassName="w-auto">
+            <Button
+              disabled={settlingEpochKey !== null}
+              onClick={() => handleSettleEpoch(type, epochId)}
+              size="xs"
+              type="button"
+              variant="default"
+            >
+              <CheckCircle2 />
+              {settlingEpochKey === actionKey ? "Settling..." : "Settle"}
+            </Button>
+          </AuthGuard>
+        ) : null}
+      </div>
+    );
+  };
   const depositEpochColumns: ColumnDef<DepositEpochRow>[] = [
     {
       accessorKey: "epochId",
@@ -999,6 +1100,17 @@ export default function VaultDetailPage() {
           </div>
         </div>
       )
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) =>
+        renderEpochActionCell({
+          type: "deposit",
+          epochId: row.original.epochId,
+          status: row.original.status,
+          isLatestEpoch: row.original.epochId === vaultContract?.currentDepositEpochId
+        })
     }
   ];
   const redeemEpochColumns: ColumnDef<RedeemEpochRow>[] = [
@@ -1019,16 +1131,29 @@ export default function VaultDetailPage() {
     {
       accessorKey: "totalPendingShares",
       header: "Shares",
-      cell: ({ row }) => (
-        <div className="space-y-1">
-          <div>
-            {formatTokenAmount(row.original.totalPendingShares, 18)} {vault.symbol}
+      cell: ({ row }) => {
+        const shares =
+          row.original.settledEpoch && row.original.status === "Settled"
+            ? row.original.settledEpoch.shares
+            : row.original.status === "Settled"
+              ? row.original.pricedNetShares
+              : row.original.totalPendingShares;
+
+        return (
+          <div className="space-y-1">
+            <div>
+              {formatTokenAmount(shares, 18)} {vault.symbol}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {row.original.status === "Open"
+                ? "pending shares"
+                : row.original.status === "Settled" && !row.original.settledEpoch
+                  ? "settled net shares"
+                  : "shares"}
+            </div>
           </div>
-          <div className="text-xs text-muted-foreground">
-            {row.original.status === "Open" ? "pending shares" : "shares"}
-          </div>
-        </div>
-      )
+        );
+      }
     },
     {
       id: "value",
@@ -1093,6 +1218,17 @@ export default function VaultDetailPage() {
           </div>
         </div>
       )
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) =>
+        renderEpochActionCell({
+          type: "redeem",
+          epochId: row.original.epochId,
+          status: row.original.status,
+          isLatestEpoch: row.original.epochId === vaultContract?.currentRedeemEpochId
+        })
     }
   ];
 
@@ -1118,25 +1254,28 @@ export default function VaultDetailPage() {
                 </div>
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "border-white/15 bg-white/5 text-white/85",
-                    isVaultPaused && "border-red-400/30 bg-red-500/15 text-red-100"
+                <AuthGuard
+                  buttonClassName={cn(
+                    "h-20 min-w-36 flex-col gap-2 rounded-2xl border-white/20 px-6 py-4 text-base font-semibold text-white shadow-[0_18px_36px_rgba(0,0,0,0.24)] hover:text-white",
+                    isVaultPaused
+                      ? "bg-emerald-500/20 hover:bg-emerald-500/30"
+                      : "bg-red-500/20 hover:bg-red-500/30"
                   )}
                 >
-                  {hasVaultPauseState ? (isVaultPaused ? "Paused" : "Open") : "Loading"}
-                </Badge>
-                <AuthGuard buttonClassName="w-auto border-white/15 bg-white/10 text-white hover:bg-white/15">
                   <Button
-                    className="border-white/15 bg-white/10 text-white hover:bg-white/15"
+                    className={cn(
+                      "h-20 min-w-36 flex-col gap-2 rounded-2xl border-white/20 px-6 py-4 text-base font-semibold text-white shadow-[0_18px_36px_rgba(0,0,0,0.24)] hover:text-white",
+                      isVaultPaused
+                        ? "bg-emerald-500/20 hover:bg-emerald-500/30"
+                        : "bg-red-500/20 hover:bg-red-500/30"
+                    )}
                     disabled={!hasVaultPauseState || isTogglingPause}
                     onClick={handleToggleVaultPause}
                     type="button"
                     variant="outline"
                   >
-                    {isVaultPaused ? <Play /> : <Square />}
-                    {isTogglingPause ? "Submitting..." : isVaultPaused ? "Unpause Vault" : "Pause Vault"}
+                    <VaultPauseIcon className="size-7" />
+                    <span className="leading-none">{vaultPauseActionLabel}</span>
                   </Button>
                 </AuthGuard>
               </div>
@@ -1184,7 +1323,6 @@ export default function VaultDetailPage() {
                     <TabsTrigger value="oracle">Oracle</TabsTrigger>
                     <TabsTrigger value="fees">Fees</TabsTrigger>
                     <TabsTrigger value="access">Access</TabsTrigger>
-                    <TabsTrigger value="operations">Operations</TabsTrigger>
                   </TabsList>
                 </div>
 
@@ -1256,7 +1394,10 @@ export default function VaultDetailPage() {
                           value={formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
                         />
                         <Separator className="my-2" />
-                        <AccountingLine label="Strategy Debt" value={formatAssetAmount(vaultContract?.strategyDebt)} />
+                        <AccountingLine
+                          label="Strategy Allocation"
+                          value={formatAssetAmount(vaultContract?.strategyAllocation)}
+                        />
                         <AccountingLine label="Active NAV" value={formatAssetAmount(vaultContract?.activeNavAssets)} />
                       </section>
 
@@ -1608,15 +1749,15 @@ export default function VaultDetailPage() {
 
                     <div className="grid gap-4 xl:grid-cols-3">
                       <AccountingMetric
-                        label="Total Strategy Debt"
+                        label="Total Strategy Allocation"
                         value={formatAssetAmount(
-                          vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt
+                          vaultContract?.strategyAllocation ?? vault.strategyManager.totalAllocation
                         )}
-                        detail="Live manager debt when available"
+                        detail="Live manager allocation when available"
                       />
                       <AccountingMetric
-                        label="Max Total Strategy Debt"
-                        value={formatAssetAmount(vault.strategyManager.maxTotalStrategyDebt)}
+                        label="Total Allocation Cap"
+                        value={formatAssetAmount(vault.strategyManager.totalAllocationCap)}
                         detail="Vault-wide allocation ceiling"
                       />
                       <AccountingMetric
@@ -1641,20 +1782,143 @@ export default function VaultDetailPage() {
                             status: vault.strategyManager.allocationPaused ? "warning" : "good"
                           },
                           {
-                            label: "Execution",
-                            value: vault.strategyManager.executionPaused ? "Paused" : "Open",
-                            status: vault.strategyManager.executionPaused ? "warning" : "good"
-                          },
-                          {
-                            label: "Reported Assets",
-                            value: formatAssetAmount(vault.strategyManager.totalStrategyReportedAssets)
-                          },
-                          {
                             label: "Last Indexed Update",
                             value: formatDate(vault.strategyManager.updatedAtTimestamp)
                           }
                         ]}
                       />
+                    </section>
+
+                    <section className="space-y-4">
+                      <div>
+                        <h3 className="text-base font-medium">Strategy Actions</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Prepare strategy manager transactions for the connected signer.
+                        </p>
+                      </div>
+                      <div className="grid gap-4 xl:grid-cols-3">
+                        <form className="rounded-lg border bg-background p-4" onSubmit={handleAddStrategySubmit}>
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                              <h4 className="text-base font-medium">Add Strategy</h4>
+                              <p className="mt-1 text-xs text-muted-foreground">Strategy manager addStrategy</p>
+                            </div>
+                            <Badge variant="outline">Config</Badge>
+                          </div>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="strategy-address">Strategy Address</Label>
+                              <Input
+                                id="strategy-address"
+                                placeholder="0x..."
+                                value={strategyAddress}
+                                onChange={(event) => setStrategyAddress(event.target.value)}
+                              />
+                            </div>
+                            <Alert>
+                              <AlertTitle>addStrategy(address)</AlertTitle>
+                              <AlertDescription>
+                                <ExplorerChip value={vault.strategyManager.address} />
+                              </AlertDescription>
+                            </Alert>
+                            <AuthGuard>
+                              <Button className="w-full" disabled={isAddingStrategy} type="submit">
+                                <Plus />
+                                {isAddingStrategy ? "Adding Strategy..." : "Add Strategy"}
+                              </Button>
+                            </AuthGuard>
+                          </div>
+                        </form>
+
+                        <form className="rounded-lg border bg-background p-4" onSubmit={handleAllocateSubmit}>
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                              <h4 className="text-base font-medium">Transfer Funds To Strategy</h4>
+                              <p className="mt-1 text-xs text-muted-foreground">Strategy manager allocate</p>
+                            </div>
+                            <Badge variant={idleReserveStatus.variant}>{idleReserveStatus.label}</Badge>
+                          </div>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="allocate-strategy">Strategy Address</Label>
+                              <Input
+                                id="allocate-strategy"
+                                placeholder="0x..."
+                                value={allocateStrategyAddress}
+                                onChange={(event) => setAllocateStrategyAddress(event.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="allocate-assets">Assets</Label>
+                              <Input
+                                id="allocate-assets"
+                                inputMode="decimal"
+                                placeholder={`0.00 ${assetSymbol}`}
+                                value={allocateAssets}
+                                onChange={(event) => setAllocateAssets(event.target.value)}
+                              />
+                            </div>
+                            <Alert>
+                              <AlertTitle>allocate(strategy, assets)</AlertTitle>
+                              <AlertDescription>
+                                Available: {formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
+                              </AlertDescription>
+                            </Alert>
+                            <AuthGuard>
+                              <Button className="w-full" disabled={isAllocatingStrategy} type="submit">
+                                <ArrowUpRight />
+                                {isAllocatingStrategy ? "Transferring..." : "Transfer To Strategy"}
+                              </Button>
+                            </AuthGuard>
+                          </div>
+                        </form>
+
+                        <form className="rounded-lg border bg-background p-4" onSubmit={handleReturnSubmit}>
+                          <div className="mb-4 flex items-center justify-between gap-3">
+                            <div>
+                              <h4 className="text-base font-medium">Transfer Funds Back</h4>
+                              <p className="mt-1 text-xs text-muted-foreground">Strategy manager returnAssets</p>
+                            </div>
+                            <Badge variant="outline">Allocator</Badge>
+                          </div>
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="return-strategy">Strategy Address</Label>
+                              <Input
+                                id="return-strategy"
+                                placeholder="0x..."
+                                value={returnStrategyAddress}
+                                onChange={(event) => setReturnStrategyAddress(event.target.value)}
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="return-assets">Assets</Label>
+                              <Input
+                                id="return-assets"
+                                inputMode="decimal"
+                                placeholder={`0.00 ${assetSymbol}`}
+                                value={returnAssets}
+                                onChange={(event) => setReturnAssets(event.target.value)}
+                              />
+                            </div>
+                            <Alert>
+                              <AlertTitle>returnAssets(strategy, assets)</AlertTitle>
+                              <AlertDescription>
+                                Total allocation:{" "}
+                                {formatAssetAmount(
+                                  vaultContract?.strategyAllocation ?? vault.strategyManager.totalAllocation
+                                )}
+                              </AlertDescription>
+                            </Alert>
+                            <AuthGuard>
+                              <Button className="w-full" disabled={isReturningStrategy} type="submit">
+                                <ArrowDownLeft />
+                                {isReturningStrategy ? "Returning..." : "Prepare Return"}
+                              </Button>
+                            </AuthGuard>
+                          </div>
+                        </form>
+                      </div>
                     </section>
 
                     <section className="overflow-hidden rounded-lg border bg-background">
@@ -1667,9 +1931,8 @@ export default function VaultDetailPage() {
                             <TableHead>Adapter</TableHead>
                             <TableHead>Kind</TableHead>
                             <TableHead>Allowed</TableHead>
-                            <TableHead>Debt</TableHead>
-                            <TableHead>Reported</TableHead>
-                            <TableHead>Max Debt</TableHead>
+                            <TableHead>Allocation</TableHead>
+                            <TableHead>Allocation Cap</TableHead>
                             <TableHead>Updated</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1686,15 +1949,14 @@ export default function VaultDetailPage() {
                                     {strategy.allowed ? "Allowed" : "Blocked"}
                                   </Badge>
                                 </TableCell>
-                                <TableCell>{formatTokenAmount(strategy.debtAssets, assetDecimals)}</TableCell>
-                                <TableCell>{formatTokenAmount(strategy.reportedAssets, assetDecimals)}</TableCell>
-                                <TableCell>{formatTokenAmount(strategy.maxDebtAssets, assetDecimals)}</TableCell>
+                                <TableCell>{formatTokenAmount(strategy.allocation, assetDecimals)}</TableCell>
+                                <TableCell>{formatTokenAmount(strategy.allocationCap, assetDecimals)}</TableCell>
                                 <TableCell>{formatDate(strategy.updatedAtTimestamp)}</TableCell>
                               </TableRow>
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={7}>No strategies indexed yet.</TableCell>
+                              <TableCell colSpan={6}>No strategies indexed yet.</TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -1706,9 +1968,9 @@ export default function VaultDetailPage() {
                 <TabsContent value="oracle">
                   <div className="space-y-6">
                     <div className="space-y-1">
-                      <h2 className="text-lg font-semibold tracking-normal">Oracle / NAV</h2>
+                      <h2 className="text-lg font-semibold tracking-normal">Oracle / External Value</h2>
                       <p className="text-sm text-muted-foreground">
-                        NAV report freshness, oracle quorum, active NAV source, and valuation report history.
+                        External account value reporting, derived active NAV, oracle quorum, and valuation history.
                       </p>
                     </div>
 
@@ -1726,9 +1988,9 @@ export default function VaultDetailPage() {
                         }
                       />
                       <AccountingMetric
-                        label="Latest NAV"
-                        value={formatAssetAmount(latestReport?.navAssets ?? vaultContract?.cachedActiveNav.assets)}
-                        detail="Latest submitted report or cached active NAV"
+                        label="Latest External Value"
+                        value={formatAssetAmount(latestReport?.externalValueAssets)}
+                        detail="Latest submitted external account value"
                       />
                       <AccountingMetric
                         label="Report Age"
@@ -1754,13 +2016,12 @@ export default function VaultDetailPage() {
                             value: `${formatInteger(vault.valuationOracle.maxReportAge)} seconds`
                           },
                           {
-                            label: "Max NAV Deviation",
-                            value: formatBps(vault.valuationOracle.maxChangeBps)
+                            label: "Max Price Deviation",
+                            value: formatBps(vault.valuationOracle.maxReportPriceDeviationBps)
                           },
                           {
-                            label: "Metadata Hash",
-                            value: vault.valuationOracle.requireReportMetadataHash ? "Required" : "Optional",
-                            status: vault.valuationOracle.requireReportMetadataHash ? "neutral" : "good"
+                            label: "Report Vault",
+                            value: <ExplorerChip value={vault.valuationOracle.reportVault} />
                           },
                           {
                             label: "Active NAV Source",
@@ -1779,6 +2040,68 @@ export default function VaultDetailPage() {
                       />
                     </section>
 
+                    <section className="space-y-4">
+                      <div>
+                        <h3 className="text-base font-medium">Oracle Actions</h3>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Prepare external account value reports for the connected signer.
+                        </p>
+                      </div>
+                      <form
+                        className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-2"
+                        onSubmit={handleReportSubmit}
+                      >
+                        <div className="space-y-4">
+                          <div>
+                            <h4 className="text-base font-medium">Report Oracle</h4>
+                            <p className="mt-1 text-xs text-muted-foreground">Report oracle submitReport</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="report-external-value">External Account Value</Label>
+                            <Input
+                              id="report-external-value"
+                              inputMode="decimal"
+                              placeholder={`0.00 ${assetSymbol}`}
+                              value={reportExternalValueAssets}
+                              onChange={(event) => setReportExternalValueAssets(event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="report-computed-at">Computed At</Label>
+                            <Input
+                              id="report-computed-at"
+                              inputMode="numeric"
+                              value={reportComputedAt}
+                              onChange={(event) => setReportComputedAt(event.target.value)}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="report-metadata">Metadata Hash</Label>
+                            <Input
+                              id="report-metadata"
+                              placeholder="0x0000... optional"
+                              value={reportMetadataHash}
+                              onChange={(event) => setReportMetadataHash(event.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <div className="flex min-w-0 flex-col justify-between gap-4">
+                          <Alert>
+                            <AlertTitle>submitReport</AlertTitle>
+                            <AlertDescription>
+                              <ExplorerChip value={vault.valuationOracle.address} />
+                            </AlertDescription>
+                          </Alert>
+                          <AuthGuard>
+                            <Button className="w-full" disabled={isSubmittingReport} type="submit">
+                              <FileText />
+                              {isSubmittingReport ? "Submitting Report..." : "Prepare Report"}
+                            </Button>
+                          </AuthGuard>
+                        </div>
+                      </form>
+                    </section>
+
                     <section className="overflow-hidden rounded-lg border bg-background">
                       <div className="border-b p-4">
                         <h3 className="text-base font-medium">Valuation Reports</h3>
@@ -1787,7 +2110,9 @@ export default function VaultDetailPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Report</TableHead>
-                            <TableHead>NAV</TableHead>
+                            <TableHead>External Value</TableHead>
+                            <TableHead>Active NAV</TableHead>
+                            <TableHead>Active Supply</TableHead>
                             <TableHead>Price</TableHead>
                             <TableHead>Metadata</TableHead>
                             <TableHead>Reporter</TableHead>
@@ -1801,7 +2126,9 @@ export default function VaultDetailPage() {
                             data.valuationReports.map((report) => (
                               <TableRow key={report.id}>
                                 <TableCell>#{report.reportId}</TableCell>
-                                <TableCell>{formatTokenAmount(report.navAssets, assetDecimals)}</TableCell>
+                                <TableCell>{formatTokenAmount(report.externalValueAssets, assetDecimals)}</TableCell>
+                                <TableCell>{formatTokenAmount(report.activeNavAssets, assetDecimals)}</TableCell>
+                                <TableCell>{formatTokenAmount(report.activeShareSupply, 18)}</TableCell>
                                 <TableCell>
                                   {formatSharePrice(report.assetsPerShare, assetDecimals, { scale: "oracle" })}
                                 </TableCell>
@@ -1820,7 +2147,7 @@ export default function VaultDetailPage() {
                             ))
                           ) : (
                             <TableRow>
-                              <TableCell colSpan={8}>No reports indexed yet.</TableCell>
+                              <TableCell colSpan={10}>No reports indexed yet.</TableCell>
                             </TableRow>
                           )}
                         </TableBody>
@@ -1954,11 +2281,6 @@ export default function VaultDetailPage() {
                             label: "Strategy Allocation",
                             value: vault.strategyManager.allocationPaused ? "Paused" : "Open",
                             status: vault.strategyManager.allocationPaused ? "warning" : "good"
-                          },
-                          {
-                            label: "Strategy Execution",
-                            value: vault.strategyManager.executionPaused ? "Paused" : "Open",
-                            status: vault.strategyManager.executionPaused ? "warning" : "good"
                           }
                         ]}
                       />
@@ -2154,314 +2476,6 @@ export default function VaultDetailPage() {
                         </p>
                       )}
                     </section>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="operations">
-                  <div className="space-y-6">
-                    <div className="space-y-1">
-                      <h2 className="text-lg font-semibold tracking-normal">Operations</h2>
-                      <p className="text-sm text-muted-foreground">
-                        Prepare strategy, epoch, and oracle actions for the connected signer.
-                      </p>
-                    </div>
-
-                    <Tabs defaultValue="strategy">
-                      <TabsList
-                        className="mb-5 max-w-full justify-start overflow-x-auto overflow-y-hidden"
-                        variant={"line"}
-                      >
-                        <TabsTrigger value="strategy">Strategy Management</TabsTrigger>
-                        <TabsTrigger value="epoch">Epoch Management</TabsTrigger>
-                        <TabsTrigger value="oracle">Oracle</TabsTrigger>
-                      </TabsList>
-
-                      <TabsContent value="strategy">
-                        <div className="grid gap-4 xl:grid-cols-3">
-                          <form className="rounded-lg border bg-background p-4" onSubmit={handleAddStrategySubmit}>
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-base font-medium">Add Strategy</h3>
-                                <p className="mt-1 text-xs text-muted-foreground">Strategy manager addStrategy</p>
-                              </div>
-                              <Badge variant="outline">Config</Badge>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="strategy-address">Strategy Address</Label>
-                                <Input
-                                  id="strategy-address"
-                                  placeholder="0x..."
-                                  value={strategyAddress}
-                                  onChange={(event) => setStrategyAddress(event.target.value)}
-                                />
-                              </div>
-                              <Alert>
-                                <AlertTitle>addStrategy(address)</AlertTitle>
-                                <AlertDescription>
-                                  <ExplorerChip value={vault.strategyManager.address} />
-                                </AlertDescription>
-                              </Alert>
-                              <AuthGuard>
-                                <Button className="w-full" disabled={isAddingStrategy} type="submit">
-                                  <Plus />
-                                  {isAddingStrategy ? "Adding Strategy..." : "Add Strategy"}
-                                </Button>
-                              </AuthGuard>
-                            </div>
-                          </form>
-
-                          <form className="rounded-lg border bg-background p-4" onSubmit={handleAllocateSubmit}>
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-base font-medium">Transfer Funds To Strategy</h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Strategy manager allocateToStrategy
-                                </p>
-                              </div>
-                              <Badge variant={idleReserveStatus.variant}>{idleReserveStatus.label}</Badge>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="allocate-strategy">Strategy Address</Label>
-                                <Input
-                                  id="allocate-strategy"
-                                  placeholder="0x..."
-                                  value={allocateStrategyAddress}
-                                  onChange={(event) => setAllocateStrategyAddress(event.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="allocate-assets">Assets</Label>
-                                <Input
-                                  id="allocate-assets"
-                                  inputMode="decimal"
-                                  placeholder={`0.00 ${assetSymbol}`}
-                                  value={allocateAssets}
-                                  onChange={(event) => setAllocateAssets(event.target.value)}
-                                />
-                              </div>
-                              <Alert>
-                                <AlertTitle>allocateToStrategy(strategy, assets)</AlertTitle>
-                                <AlertDescription>
-                                  Available: {formatAssetAmount(vaultContract?.availableIdleAssetsForStrategy)}
-                                </AlertDescription>
-                              </Alert>
-                              <AuthGuard>
-                                <Button className="w-full" disabled={isAllocatingStrategy} type="submit">
-                                  <ArrowUpRight />
-                                  {isAllocatingStrategy ? "Transferring..." : "Transfer To Strategy"}
-                                </Button>
-                              </AuthGuard>
-                            </div>
-                          </form>
-
-                          <form className="rounded-lg border bg-background p-4" onSubmit={handleReturnSubmit}>
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-base font-medium">Transfer Funds Back</h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Strategy manager returnFromStrategy
-                                </p>
-                              </div>
-                              <Badge variant="outline">Allocator</Badge>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <Label htmlFor="return-strategy">Strategy Address</Label>
-                                <Input
-                                  id="return-strategy"
-                                  placeholder="0x..."
-                                  value={returnStrategyAddress}
-                                  onChange={(event) => setReturnStrategyAddress(event.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="return-assets">Assets</Label>
-                                <Input
-                                  id="return-assets"
-                                  inputMode="decimal"
-                                  placeholder={`0.00 ${assetSymbol}`}
-                                  value={returnAssets}
-                                  onChange={(event) => setReturnAssets(event.target.value)}
-                                />
-                              </div>
-                              <Alert>
-                                <AlertTitle>returnFromStrategy(strategy, assets)</AlertTitle>
-                                <AlertDescription>
-                                  Total debt:{" "}
-                                  {formatAssetAmount(
-                                    vaultContract?.strategyDebt ?? vault.strategyManager.totalStrategyDebt
-                                  )}
-                                </AlertDescription>
-                              </Alert>
-                              <AuthGuard>
-                                <Button className="w-full" disabled={isReturningStrategy} type="submit">
-                                  <ArrowDownLeft />
-                                  {isReturningStrategy ? "Returning..." : "Prepare Return"}
-                                </Button>
-                              </AuthGuard>
-                            </div>
-                          </form>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="epoch">
-                        <div className="grid gap-4 lg:grid-cols-2">
-                          <form className="rounded-lg border bg-background p-4" onSubmit={handleCloseSubmit}>
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-base font-medium">Close Epoch</h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Vault closeDepositEpoch or closeRedeemEpoch
-                                </p>
-                              </div>
-                              <Badge variant="outline">Settlement</Badge>
-                            </div>
-                            <div className="space-y-4">
-                              <Tabs value={closeType} onValueChange={(value) => setCloseType(value as OperationType)}>
-                                <TabsList>
-                                  {supportsAsyncDeposits ? <TabsTrigger value="deposit">Deposit</TabsTrigger> : null}
-                                  <TabsTrigger value="redeem">Redeem</TabsTrigger>
-                                </TabsList>
-                              </Tabs>
-                              <div className="space-y-2">
-                                <Label htmlFor="close-epoch">Epoch ID</Label>
-                                <Input
-                                  id="close-epoch"
-                                  inputMode="numeric"
-                                  placeholder={
-                                    closeType === "redeem"
-                                      ? (vaultContract?.currentRedeemEpochId ?? "Current epoch id")
-                                      : "Current deposit epoch id"
-                                  }
-                                  value={closeEpochId}
-                                  onChange={(event) => setCloseEpochId(event.target.value)}
-                                />
-                              </div>
-                              <Alert>
-                                <AlertTitle>
-                                  {closeType === "deposit" ? "closeDepositEpoch" : "closeRedeemEpoch"}
-                                </AlertTitle>
-                                <AlertDescription>
-                                  <ExplorerChip value={vault.address} />
-                                </AlertDescription>
-                              </Alert>
-                              <AuthGuard>
-                                <Button className="w-full" disabled={isClosingEpoch} type="submit">
-                                  <LockKeyhole />
-                                  {isClosingEpoch ? "Closing Epoch..." : "Close Epoch"}
-                                </Button>
-                              </AuthGuard>
-                            </div>
-                          </form>
-
-                          <form className="rounded-lg border bg-background p-4" onSubmit={handleSettleSubmit}>
-                            <div className="mb-4 flex items-center justify-between gap-3">
-                              <div>
-                                <h3 className="text-base font-medium">Settle Epoch</h3>
-                                <p className="mt-1 text-xs text-muted-foreground">
-                                  Vault settleDepositEpoch or settleRedeemEpoch
-                                </p>
-                              </div>
-                              <Badge variant={isReportFresh === false ? "destructive" : "default"}>
-                                {isReportFresh === false ? "Stale Report" : "Fresh Report"}
-                              </Badge>
-                            </div>
-                            <div className="space-y-4">
-                              <Tabs value={settleType} onValueChange={(value) => setSettleType(value as OperationType)}>
-                                <TabsList>
-                                  {supportsAsyncDeposits ? <TabsTrigger value="deposit">Deposit</TabsTrigger> : null}
-                                  <TabsTrigger value="redeem">Redeem</TabsTrigger>
-                                </TabsList>
-                              </Tabs>
-                              <div className="space-y-2">
-                                <Label htmlFor="settle-epoch">Epoch ID</Label>
-                                <Input
-                                  id="settle-epoch"
-                                  inputMode="numeric"
-                                  placeholder={
-                                    settleType === "redeem"
-                                      ? (latestUnsettledRedeemEpochId ?? "Latest unsettled epoch id")
-                                      : "Current deposit epoch id"
-                                  }
-                                  value={settleEpochId}
-                                  onChange={(event) => setSettleEpochId(event.target.value)}
-                                />
-                              </div>
-                              <Alert>
-                                <AlertTitle>
-                                  {settleType === "deposit" ? "settleDepositEpoch" : "settleRedeemEpoch"}
-                                </AlertTitle>
-                                <AlertDescription>Latest oracle report #{latestReportId || "--"}</AlertDescription>
-                              </Alert>
-                              <AuthGuard>
-                                <Button className="w-full" disabled={isSettlingEpoch} type="submit">
-                                  <CheckCircle2 />
-                                  {isSettlingEpoch ? "Settling Epoch..." : "Settle Epoch"}
-                                </Button>
-                              </AuthGuard>
-                            </div>
-                          </form>
-                        </div>
-                      </TabsContent>
-
-                      <TabsContent value="oracle">
-                        <form
-                          className="grid gap-4 rounded-lg border bg-background p-4 lg:grid-cols-2"
-                          onSubmit={handleReportSubmit}
-                        >
-                          <div className="space-y-4">
-                            <div>
-                              <h3 className="text-base font-medium">Report Oracle</h3>
-                              <p className="mt-1 text-xs text-muted-foreground">Report oracle submitReport</p>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="report-nav">NAV Assets</Label>
-                              <Input
-                                id="report-nav"
-                                inputMode="decimal"
-                                placeholder={`0.00 ${assetSymbol}`}
-                                value={reportNavAssets}
-                                onChange={(event) => setReportNavAssets(event.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="report-computed-at">Computed At</Label>
-                              <Input
-                                id="report-computed-at"
-                                inputMode="numeric"
-                                value={reportComputedAt}
-                                onChange={(event) => setReportComputedAt(event.target.value)}
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="report-metadata">Metadata Hash</Label>
-                              <Input
-                                id="report-metadata"
-                                placeholder="0x0000... optional unless required"
-                                value={reportMetadataHash}
-                                onChange={(event) => setReportMetadataHash(event.target.value)}
-                              />
-                            </div>
-                          </div>
-                          <div className="flex min-w-0 flex-col justify-between gap-4">
-                            <Alert>
-                              <AlertTitle>submitReport</AlertTitle>
-                              <AlertDescription>
-                                <ExplorerChip value={vault.valuationOracle.address} />
-                              </AlertDescription>
-                            </Alert>
-                            <AuthGuard>
-                              <Button className="w-full" disabled={isSubmittingReport} type="submit">
-                                <FileText />
-                                {isSubmittingReport ? "Submitting Report..." : "Prepare Report"}
-                              </Button>
-                            </AuthGuard>
-                          </div>
-                        </form>
-                      </TabsContent>
-                    </Tabs>
                   </div>
                 </TabsContent>
               </Tabs>
