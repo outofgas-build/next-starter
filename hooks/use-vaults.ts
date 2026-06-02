@@ -55,6 +55,10 @@ export type VaultContract = {
   vaultIdleBalance: string;
   availableIdleAssetsForStrategy: string;
   strategyAllocation: string;
+  maxTotalAssets: string;
+  maxPendingDepositAssets: string;
+  minDepositAssets: string;
+  minRedeemShares: string;
   pendingRedeemShares: string;
   estimatedPendingRedeemAssets: string;
   totalPendingDepositAssets: string;
@@ -288,6 +292,10 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     { ...vaultContract, functionName: "activeNavAssets" },
     { ...vaultContract, functionName: "trustedAssetsPerShare" },
     { ...vaultContract, functionName: "availableIdleAssetsForStrategy" },
+    { ...vaultContract, functionName: "maxTotalAssets" },
+    { ...vaultContract, functionName: "maxPendingDepositAssets" },
+    { ...vaultContract, functionName: "minDepositAssets" },
+    { ...vaultContract, functionName: "minRedeemShares" },
     ...(vaultConfig.vaultType === "fullyAsync"
       ? [{ ...vaultContract, functionName: "totalPendingDepositAssets" }]
       : []),
@@ -323,6 +331,22 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
   const availableIdleAssetsForStrategy = requireMulticallResult(
     primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
     "availableIdleAssetsForStrategy"
+  );
+  const maxTotalAssets = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "maxTotalAssets"
+  );
+  const maxPendingDepositAssets = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "maxPendingDepositAssets"
+  );
+  const minDepositAssets = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "minDepositAssets"
+  );
+  const minRedeemShares = requireMulticallResult(
+    primaryResults[primaryResultIndex++] as MulticallResult<bigint>,
+    "minRedeemShares"
   );
   const totalPendingDepositAssets =
     vaultConfig.vaultType === "fullyAsync"
@@ -468,6 +492,10 @@ async function fetchVaultContract(address: string): Promise<VaultContract> {
     activeNavAssets: activeNavAssets.toString(),
     trustedAssetsPerShare: trustedAssetsPerShare.toString(),
     availableIdleAssetsForStrategy: availableIdleAssetsForStrategy.toString(),
+    maxTotalAssets: maxTotalAssets.toString(),
+    maxPendingDepositAssets: maxPendingDepositAssets.toString(),
+    minDepositAssets: minDepositAssets.toString(),
+    minRedeemShares: minRedeemShares.toString(),
     pendingRedeemShares: displayPendingRedeemShares.toString(),
     estimatedPendingRedeemAssets: estimatedPendingRedeemAssets.toString(),
     totalPendingDepositAssets: totalPendingDepositAssets.toString(),

@@ -24,7 +24,10 @@ import {
   erc20Abi,
   http,
   isAddress,
+  keccak256,
   parseUnits,
+  stringToHex,
+  zeroAddress,
   zeroHash,
   type Address,
   type Hex
@@ -63,6 +66,8 @@ type RedeemEpochRow = VaultContract["redeemEpochs"][number] & {
 const defaultBlockExplorerUrl = process.env.NEXT_PUBLIC_BLOCK_EXPLORER_URL ?? "https://etherscan.io";
 const bytes32Pattern = /^0x[0-9a-fA-F]{64}$/;
 const maxUint64 = (BigInt(1) << BigInt(64)) - BigInt(1);
+const strategyConfigRole = keccak256(stringToHex("STRATEGY_CONFIG_ROLE"));
+const strategyAllocatorRole = keccak256(stringToHex("STRATEGY_ALLOCATOR_ROLE"));
 const ExplorerUrlContext = createContext(defaultBlockExplorerUrl);
 
 function getExplorerUrl(value: string, entity: ExplorerEntity, explorerUrl: string) {
@@ -306,6 +311,9 @@ export default function VaultDetailPage() {
   const [reportMetadataHash, setReportMetadataHash] = useState("");
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const [isTogglingPause, setIsTogglingPause] = useState(false);
+  const [minDepositAssets, setMinDepositAssets] = useState("");
+  const [minRedeemShares, setMinRedeemShares] = useState("");
+  const [isUpdatingLimits, setIsUpdatingLimits] = useState(false);
 
   const assetSymbol = vault?.asset.symbol ?? "asset";
   const assetDecimals = vault?.asset.decimals ?? 18;
@@ -313,6 +321,26 @@ export default function VaultDetailPage() {
   const supportsAsyncDeposits = vault?.vaultTypeName.toLowerCase().includes("async deposit") ?? false;
   const formatAssetAmount = (value?: string | number | null) =>
     value === undefined || value === null ? "--" : `${formatTokenAmount(value, assetDecimals)} ${assetSymbol}`;
+  const strategyManagerAddress = vaultContract?.strategyManager ?? vault?.strategyManager.address ?? "";
+  const hasStrategyManager = isAddress(strategyManagerAddress) && strategyManagerAddress.toLowerCase() !== zeroAddress;
+
+  async function requireStrategyManagerRole(role: Hex, account: Address, message: string) {
+    if (!publicClient || !hasStrategyManager) return false;
+
+    const hasRole = await publicClient.readContract({
+      address: strategyManagerAddress as Address,
+      abi: strategyManagerAbi,
+      functionName: "hasRole",
+      args: [role, account]
+    });
+
+    if (!hasRole) {
+      toast.error(message);
+      return false;
+    }
+
+    return true;
+  }
 
   async function handleToggleVaultPause() {
     if (!vault || !vaultConfig || vaultContract === undefined) return;
@@ -355,6 +383,74 @@ export default function VaultDetailPage() {
     }
   }
 
+  async function handleLimitsSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!vault || !vaultConfig || !vaultContract) return;
+
+    const parsedMinDepositAssets =
+      minDepositAssets.trim() === "" ? BigInt(vaultContract.minDepositAssets) : parseFormattedAssetUnits(minDepositAssets, assetDecimals);
+    if (parsedMinDepositAssets === null) {
+      toast.error(`Enter minimum deposit as a ${assetSymbol} amount.`);
+      return;
+    }
+
+    const parsedMinRedeemShares =
+      minRedeemShares.trim() === "" ? BigInt(vaultContract.minRedeemShares) : parseFormattedAssetUnits(minRedeemShares, 18);
+    if (parsedMinRedeemShares === null) {
+      toast.error(`Enter minimum redeem as a ${vault.symbol} share amount.`);
+      return;
+    }
+
+    if (parsedMinDepositAssets < BigInt(0) || parsedMinRedeemShares < BigInt(0)) {
+      toast.error("Minimum limits cannot be negative.");
+      return;
+    }
+
+    const wallet = wallets[0];
+    if (!wallet) {
+      toast.error("Connect a wallet before updating vault limits.");
+      return;
+    }
+
+    try {
+      setIsUpdatingLimits(true);
+      await wallet.switchChain(vaultConfig.chain.id);
+      const provider = await wallet.getEthereumProvider();
+      const walletClient = createWalletClient({
+        account: wallet.address as Address,
+        chain: vaultConfig.chain,
+        transport: custom(provider)
+      });
+      const hash = await walletClient.writeContract({
+        address: vault.address as Address,
+        abi: vaultAbi,
+        functionName: "setLimits",
+        args: [
+          BigInt(vaultContract.maxTotalAssets),
+          BigInt(vaultContract.maxPendingDepositAssets),
+          parsedMinDepositAssets,
+          parsedMinRedeemShares
+        ]
+      });
+
+      toast.success("Limit update transaction submitted.", {
+        description: hash
+      });
+      setMinDepositAssets("");
+      setMinRedeemShares("");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.detail(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.contract(vault.address.toLowerCase()) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.vaults.list() })
+      ]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Limit update transaction failed.");
+    } finally {
+      setIsUpdatingLimits(false);
+    }
+  }
+
   async function handleAddStrategySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -366,8 +462,8 @@ export default function VaultDetailPage() {
       return;
     }
 
-    if (!isAddress(vault.strategyManager.address)) {
-      toast.error("Strategy manager address is invalid.");
+    if (!hasStrategyManager) {
+      toast.error("Strategy manager is not configured on this vault.");
       return;
     }
 
@@ -380,14 +476,22 @@ export default function VaultDetailPage() {
     try {
       setIsAddingStrategy(true);
       await wallet.switchChain(vaultConfig.chain.id);
+      const walletAddress = wallet.address as Address;
+      const hasConfigRole = await requireStrategyManagerRole(
+        strategyConfigRole,
+        walletAddress,
+        "Connected wallet needs STRATEGY_CONFIG_ROLE on the strategy manager."
+      );
+      if (!hasConfigRole) return;
+
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
-        account: wallet.address as Address,
+        account: walletAddress,
         chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
-        address: vault.strategyManager.address as Address,
+        address: strategyManagerAddress as Address,
         abi: strategyManagerAbi,
         functionName: "addStrategy",
         args: [normalizedStrategyAddress as Address]
@@ -420,8 +524,8 @@ export default function VaultDetailPage() {
       return;
     }
 
-    if (!isAddress(vault.strategyManager.address)) {
-      toast.error("Strategy manager address is invalid.");
+    if (!hasStrategyManager) {
+      toast.error("Strategy manager is not configured on this vault.");
       return;
     }
 
@@ -451,14 +555,22 @@ export default function VaultDetailPage() {
     try {
       setIsAllocatingStrategy(true);
       await wallet.switchChain(vaultConfig.chain.id);
+      const walletAddress = wallet.address as Address;
+      const hasAllocatorRole = await requireStrategyManagerRole(
+        strategyAllocatorRole,
+        walletAddress,
+        "Connected wallet needs STRATEGY_ALLOCATOR_ROLE on the strategy manager."
+      );
+      if (!hasAllocatorRole) return;
+
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
-        account: wallet.address as Address,
+        account: walletAddress,
         chain: vaultConfig.chain,
         transport: custom(provider)
       });
       const hash = await walletClient.writeContract({
-        address: vault.strategyManager.address as Address,
+        address: strategyManagerAddress as Address,
         abi: strategyManagerAbi,
         functionName: "allocate",
         args: [normalizedStrategyAddress as Address, assets]
@@ -492,8 +604,8 @@ export default function VaultDetailPage() {
       return;
     }
 
-    if (!isAddress(vault.strategyManager.address)) {
-      toast.error("Strategy manager address is invalid.");
+    if (!hasStrategyManager) {
+      toast.error("Strategy manager is not configured on this vault.");
       return;
     }
 
@@ -522,12 +634,19 @@ export default function VaultDetailPage() {
     }
 
     const walletAddress = wallet.address as Address;
-    const strategyManagerAddress = vault.strategyManager.address as Address;
+    const managerAddress = strategyManagerAddress as Address;
     const assetAddress = (vaultContract?.asset ?? vault.asset.address) as Address;
 
     try {
       setIsReturningStrategy(true);
       await wallet.switchChain(vaultConfig.chain.id);
+      const hasAllocatorRole = await requireStrategyManagerRole(
+        strategyAllocatorRole,
+        walletAddress,
+        "Connected wallet needs STRATEGY_ALLOCATOR_ROLE on the strategy manager."
+      );
+      if (!hasAllocatorRole) return;
+
       const provider = await wallet.getEthereumProvider();
       const walletClient = createWalletClient({
         account: walletAddress,
@@ -539,7 +658,7 @@ export default function VaultDetailPage() {
         address: assetAddress,
         abi: erc20Abi,
         functionName: "allowance",
-        args: [normalizedStrategyAddress as Address, strategyManagerAddress]
+        args: [normalizedStrategyAddress as Address, managerAddress]
       });
 
       if (allowance < assets) {
@@ -552,7 +671,7 @@ export default function VaultDetailPage() {
           address: assetAddress,
           abi: erc20Abi,
           functionName: "approve",
-          args: [strategyManagerAddress, assets]
+          args: [managerAddress, assets]
         });
 
         toast.success("Approval transaction submitted.", {
@@ -562,7 +681,7 @@ export default function VaultDetailPage() {
       }
 
       const returnHash = await walletClient.writeContract({
-        address: strategyManagerAddress,
+        address: managerAddress,
         abi: strategyManagerAbi,
         functionName: "returnAssets",
         args: [normalizedStrategyAddress as Address, assets]
@@ -1320,6 +1439,7 @@ export default function VaultDetailPage() {
                     </TabsTrigger>
                     <TabsTrigger value="epochs">Epochs</TabsTrigger>
                     <TabsTrigger value="strategies">Strategies</TabsTrigger>
+                    <TabsTrigger value="limits">Limits</TabsTrigger>
                     <TabsTrigger value="oracle">Oracle</TabsTrigger>
                     <TabsTrigger value="fees">Fees</TabsTrigger>
                     <TabsTrigger value="access">Access</TabsTrigger>
@@ -1774,7 +1894,7 @@ export default function VaultDetailPage() {
                         items={[
                           {
                             label: "Strategy Manager",
-                            value: <ExplorerChip value={vault.strategyManager.address} />
+                            value: <ExplorerChip value={strategyManagerAddress} />
                           },
                           {
                             label: "Allocation",
@@ -1818,7 +1938,7 @@ export default function VaultDetailPage() {
                             <Alert>
                               <AlertTitle>addStrategy(address)</AlertTitle>
                               <AlertDescription>
-                                <ExplorerChip value={vault.strategyManager.address} />
+                                <ExplorerChip value={strategyManagerAddress} />
                               </AlertDescription>
                             </Alert>
                             <AuthGuard>
@@ -1962,6 +2082,87 @@ export default function VaultDetailPage() {
                         </TableBody>
                       </Table>
                     </section>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="limits">
+                  <div className="space-y-6">
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold tracking-normal">Limits</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Vault capacity and minimum request settings enforced by the limit module.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-4 xl:grid-cols-4">
+                      <AccountingMetric
+                        label="Minimum Deposit"
+                        value={formatAssetAmount(vaultContract?.minDepositAssets)}
+                        detail="Smallest accepted deposit request"
+                      />
+                      <AccountingMetric
+                        label="Minimum Redeem"
+                        value={`${formatTokenAmount(vaultContract?.minRedeemShares, 18)} ${vault.symbol}`}
+                        detail="Smallest accepted redeem request"
+                      />
+                      <AccountingMetric
+                        label="Max Total Assets"
+                        value={formatAssetAmount(vaultContract?.maxTotalAssets)}
+                        detail="Zero means no configured cap"
+                      />
+                      <AccountingMetric
+                        label="Max Pending Deposits"
+                        value={formatAssetAmount(vaultContract?.maxPendingDepositAssets)}
+                        detail="Zero means no configured cap"
+                      />
+                    </div>
+
+                    <form className="rounded-lg border bg-background p-4" onSubmit={handleLimitsSubmit}>
+                      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <h3 className="text-base font-medium">Minimum Request Config</h3>
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            Updates minimum deposit and redeem limits while preserving the current capacity caps.
+                          </p>
+                        </div>
+                        <Badge variant="outline">setLimits</Badge>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="min-deposit-assets">Minimum Deposit</Label>
+                          <Input
+                            id="min-deposit-assets"
+                            inputMode="decimal"
+                            placeholder={`${formatTokenAmount(vaultContract?.minDepositAssets, assetDecimals)} ${assetSymbol}`}
+                            value={minDepositAssets}
+                            onChange={(event) => setMinDepositAssets(event.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="min-redeem-shares">Minimum Redeem</Label>
+                          <Input
+                            id="min-redeem-shares"
+                            inputMode="decimal"
+                            placeholder={`${formatTokenAmount(vaultContract?.minRedeemShares, 18)} ${vault.symbol}`}
+                            value={minRedeemShares}
+                            onChange={(event) => setMinRedeemShares(event.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <Alert className="mt-4">
+                        <AlertTitle>setLimits(maxTotalAssets, maxPendingDepositAssets, minDepositAssets, minRedeemShares)</AlertTitle>
+                        <AlertDescription>
+                          Capacity caps remain at {formatAssetAmount(vaultContract?.maxTotalAssets)} total and{" "}
+                          {formatAssetAmount(vaultContract?.maxPendingDepositAssets)} pending deposit assets.
+                        </AlertDescription>
+                      </Alert>
+                      <AuthGuard>
+                        <Button className="mt-4 w-full md:w-auto" disabled={!vaultContract || isUpdatingLimits} type="submit">
+                          <CheckCircle2 />
+                          {isUpdatingLimits ? "Updating Limits..." : "Update Minimums"}
+                        </Button>
+                      </AuthGuard>
+                    </form>
                   </div>
                 </TabsContent>
 

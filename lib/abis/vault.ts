@@ -53,6 +53,18 @@ export const vaultAbi = [
   },
   {
     type: "function",
+    name: "setLimits",
+    inputs: [
+      { name: "newMaxTotalAssets", type: "uint256", internalType: "uint256" },
+      { name: "newMaxPendingDepositAssets", type: "uint256", internalType: "uint256" },
+      { name: "newMinDepositAssets", type: "uint256", internalType: "uint256" },
+      { name: "newMinRedeemShares", type: "uint256", internalType: "uint256" }
+    ],
+    outputs: [],
+    stateMutability: "nonpayable"
+  },
+  {
+    type: "function",
     name: "paused",
     inputs: [],
     outputs: [{ name: "", type: "bool", internalType: "bool" }],
@@ -82,6 +94,34 @@ export const vaultAbi = [
   {
     type: "function",
     name: "availableIdleAssetsForStrategy",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "maxTotalAssets",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "maxPendingDepositAssets",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "minDepositAssets",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
+    stateMutability: "view"
+  },
+  {
+    type: "function",
+    name: "minRedeemShares",
     inputs: [],
     outputs: [{ name: "", type: "uint256", internalType: "uint256" }],
     stateMutability: "view"

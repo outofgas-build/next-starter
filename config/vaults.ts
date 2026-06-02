@@ -1,5 +1,5 @@
 import type { Address, Chain } from "viem";
-import { base, bsc, monad } from "viem/chains";
+import { base } from "viem/chains";
 import { getSubgraphUrl } from "@/config/subgraph";
 
 export type VaultConfig = {
@@ -17,8 +17,8 @@ function getEnv(name: string) {
 }
 
 const baseRpcUrl = getEnv("NEXT_PUBLIC_BASE_RPC_URL") ?? getEnv("NEXT_PUBLIC_CHAIN_RPC_URL");
-const bscRpcUrl = getEnv("NEXT_PUBLIC_BSC_RPC_URL");
-const monadRpcUrl = getEnv("NEXT_PUBLIC_MONAD_RPC_URL");
+// const bscRpcUrl = getEnv("NEXT_PUBLIC_BSC_RPC_URL");
+// const monadRpcUrl = getEnv("NEXT_PUBLIC_MONAD_RPC_URL");
 
 export const VAULT_CONFIGS: VaultConfig[] = [
   {
@@ -30,24 +30,24 @@ export const VAULT_CONFIGS: VaultConfig[] = [
     rpcUrl: baseRpcUrl,
     explorerUrl: base.blockExplorers.default.url
   },
-  {
-    id: "vQuant",
-    address: "0x2254d7Ee4C0312F3846d2fFF07b7CE3E666897cc",
-    vaultType: "syncDepositAsyncRedeem",
-    chain: bsc,
-    subgraphUrl: getSubgraphUrl(bsc.id),
-    rpcUrl: bscRpcUrl,
-    explorerUrl: bsc.blockExplorers.default.url
-  },
-  {
-    id: "vUSD",
-    address: "0x16580F682845d578d2b358F759D3d878690Be558",
-    vaultType: "syncDepositAsyncRedeem",
-    chain: monad,
-    subgraphUrl: getSubgraphUrl(monad.id),
-    rpcUrl: monadRpcUrl,
-    explorerUrl: monad.blockExplorers.default.url
-  }
+  // {
+  //   id: "vQuant",
+  //   address: "0x2254d7Ee4C0312F3846d2fFF07b7CE3E666897cc",
+  //   vaultType: "syncDepositAsyncRedeem",
+  //   chain: bsc,
+  //   subgraphUrl: getSubgraphUrl(bsc.id),
+  //   rpcUrl: bscRpcUrl,
+  //   explorerUrl: bsc.blockExplorers.default.url
+  // },
+  // {
+  //   id: "vUSD",
+  //   address: "0x16580F682845d578d2b358F759D3d878690Be558",
+  //   vaultType: "syncDepositAsyncRedeem",
+  //   chain: monad,
+  //   subgraphUrl: getSubgraphUrl(monad.id),
+  //   rpcUrl: monadRpcUrl,
+  //   explorerUrl: monad.blockExplorers.default.url
+  // }
 ];
 
 export function getVaultConfigByAddress(address?: string) {
